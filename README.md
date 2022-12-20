@@ -22,9 +22,9 @@ import (
 
 var routes = []cwhttp.Route{
 	{
-		Method:  http.MethodGet,
-		Path:    "/testing",
-		Handler: testing,
+        Method:  http.MethodGet,
+        Path:    "/testing",
+        Handler: testing,
 	},
 }
 
@@ -60,6 +60,7 @@ import (
 func main() {
     logger := logging.NewLogger()
 
+    // set level directly or with env vars
     logger.Level = logging.DebugLevel
 
     logger.Info("Info log")
