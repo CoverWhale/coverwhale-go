@@ -17,28 +17,21 @@ func TestNewHTTPServer(t *testing.T) {
 		port         int
 		route        Route
 	}{
-		{name: "with api version", version: "v1", port: 8080, route: Route{Name: "test"}},
-		{name: "with timeouts", version: "v1", port: 8080, route: Route{Name: "test"}, idleTimeout: 5, writeTimeout: 5, readTimeout: 5},
+		{name: "with api version", port: 8080},
+		{name: "with timeouts", port: 8080, idleTimeout: 5, writeTimeout: 5, readTimeout: 5},
 	}
 
 	for _, v := range tt {
 		t.Run(v.name, func(t *testing.T) {
 			s := NewHTTPServer(
 				SetServerPort(v.port),
-				SetServerApiVersion(v.version),
 				SetIdleTimeout(v.idleTimeout),
 				SetReadTimeout(v.readTimeout),
 				SetWriteTimeout(v.writeTimeout),
 			)
 
-			s.Router.Name(v.route.Name)
-			path, err := s.Router.Get(v.route.Name).GetPathTemplate()
-			if err != nil {
-				t.Fatalf("error getting path: %v", err)
-			}
-
-			if path != fmt.Sprintf("/api/%s", v.version) {
-				t.Errorf("expected %s, but got %s", fmt.Sprintf("/api/%s", v.version), path)
+			if s.apiServer.Addr != fmt.Sprintf(":%d", v.port) {
+				t.Errorf("expected port to be %d but got %v", v.port, s.apiServer.Addr)
 			}
 
 			if s.apiServer.IdleTimeout != time.Duration(v.idleTimeout)*time.Second {
@@ -60,7 +53,6 @@ func TestRegisterSubrouter(t *testing.T) {
 	prefix := "/test"
 	routes := []Route{
 		{
-			Name:   "test",
 			Method: http.MethodGet,
 			Path:   "/test",
 		},
@@ -70,25 +62,11 @@ func TestRegisterSubrouter(t *testing.T) {
 
 	s.RegisterSubRouter(prefix, routes)
 
-	for _, v := range routes {
-		t.Run(v.Name, func(t *testing.T) {
-			path, err := s.Router.Get(v.Name).GetPathTemplate()
-			if err != nil {
-				t.Fatal(err)
-			}
+	paths := s.Router.Routes()
 
-			methods, err := s.Router.Get(v.Name).GetMethods()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if path != fmt.Sprintf("%s%s", prefix, v.Path) {
-				t.Errorf("expected path %s but got %s", fmt.Sprintf("%s%s", prefix, v.Path), path)
-			}
-
-			if methods[0] != v.Method {
-				t.Errorf("expected method %s but got %s", v.Method, methods[0])
-			}
-		})
+	for _, path := range paths {
+		if path.Pattern != fmt.Sprintf("%s/*", prefix) {
+			t.Errorf("expected prefix %s but got %s", fmt.Sprintf("%s/*", prefix), path)
+		}
 	}
 }

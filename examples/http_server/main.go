@@ -5,12 +5,12 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 )
 
 var routes = []cwhttp.Route{
 	{
-		Name:    "testing",
 		Method:  http.MethodGet,
 		Path:    "/testing",
 		Handler: testing,
@@ -36,11 +36,21 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			l.Info("in middleware")
+			h.ServeHTTP(w, r)
+		})
+	}
+
+}
+
 func main() {
 	s := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
-		cwhttp.SetServerApiVersion("v1"),
 	)
-	s.RegisterSubRouter("/yo", routes)
+
+	s.RegisterSubRouter("/api/v1", routes, exampleMiddleware(s.Logger))
 	log.Fatal(s.Serve())
 }
