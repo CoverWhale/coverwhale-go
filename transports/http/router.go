@@ -6,18 +6,22 @@ import (
 	"time"
 
 	"github.com/CoverWhale/coverwhale-go/logging"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 var (
-	InternalError = fmt.Errorf("internal server error")
+	ErrInternalError = fmt.Errorf("internal server error")
 )
 
 // ServerOption is a functional option to modify the server
 type ServerOption func(*Server)
 
+type MiddlewareOption func(*chi.Mux)
+
 // handlerWithError is a normal HTTP handler but returns an error
 type handlerWithError func(http.ResponseWriter, *http.Request) error
+
+type MiddlewareWithLogger func(*Server, http.Handler) http.Handler
 
 // errHandler contains a handler that returns an error and a logger
 type errHandler struct {
@@ -29,12 +33,11 @@ type errHandler struct {
 type Server struct {
 	apiServer *http.Server
 	Logger    *logging.Logger
-	Router    *mux.Router
+	Router    *chi.Mux
 }
 
 // Route contains the information needed for an HTTP handler
 type Route struct {
-	Name    string
 	Method  string
 	Path    string
 	Handler handlerWithError
@@ -42,7 +45,7 @@ type Route struct {
 
 // NewHTTPServer initializes and returns a new Server
 func NewHTTPServer(opts ...ServerOption) *Server {
-	r := mux.NewRouter().StrictSlash(true)
+	r := chi.NewRouter()
 
 	s := &Server{
 		Logger: logging.NewLogger(),
@@ -68,14 +71,6 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 func SetServerPort(p int) ServerOption {
 	return func(s *Server) {
 		s.apiServer.Addr = fmt.Sprintf(":%d", p)
-	}
-}
-
-// SetServerApiVersion sets the default API version path. If this option is not provided then the handlers are registered to /
-func SetServerApiVersion(v string) ServerOption {
-	return func(s *Server) {
-		r := s.Router.PathPrefix(fmt.Sprintf("/api/%s", v)).Subrouter()
-		s.Router = r
 	}
 }
 
@@ -111,7 +106,7 @@ func (e *errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		e.logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(InternalError.Error()))
+		w.Write([]byte(ErrInternalError.Error()))
 		return
 	}
 
@@ -125,12 +120,16 @@ func (e *errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-// RegisterSubRouter creates a subrouter based on a path and a slice of routes
-func (s *Server) RegisterSubRouter(prefix string, routes []Route) *Server {
-	subRouter := s.Router.PathPrefix(prefix).Subrouter()
+// RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
+func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
+	subRouter := chi.NewRouter()
+	s.Router.Mount(prefix, subRouter)
+	for _, m := range middleware {
+		subRouter.Use(m)
+	}
 
 	for _, v := range routes {
-		subRouter.Methods(v.Method).Path(v.Path).Name(v.Name).Handler(&errHandler{
+		subRouter.Method(v.Method, v.Path, &errHandler{
 			handler: v.Handler,
 			logger:  s.Logger,
 		})

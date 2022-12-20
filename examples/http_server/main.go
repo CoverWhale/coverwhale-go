@@ -10,7 +10,6 @@ import (
 
 var routes = []cwhttp.Route{
 	{
-		Name:    "testing",
 		Method:  http.MethodGet,
 		Path:    "/testing",
 		Handler: testing,
@@ -36,11 +35,21 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func exampleMiddleware(s *cwhttp.Server) func(h http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s.Logger.Info("in middleware")
+			h.ServeHTTP(w, r)
+		})
+	}
+
+}
+
 func main() {
 	s := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
-		cwhttp.SetServerApiVersion("v1"),
 	)
-	s.RegisterSubRouter("/yo", routes)
+
+	s.RegisterSubRouter("/api/v1", routes, exampleMiddleware(s))
 	log.Fatal(s.Serve())
 }
