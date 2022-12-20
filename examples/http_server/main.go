@@ -20,9 +20,6 @@ var routes = []cwhttp.Route{
 func testing(w http.ResponseWriter, r *http.Request) error {
 	ie := r.Header.Get("internal-error")
 	ce := r.Header.Get("client-error")
-	if r.Header.Get("Authorization") == "" {
-		return cwhttp.NewAppError(fmt.Errorf("unauthorized"), 401)
-	}
 
 	if ie != "" {
 		return fmt.Errorf("this is an internal error")
@@ -39,6 +36,13 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") == "" {
+				l.Info("unauthorized")
+				w.WriteHeader(401)
+				w.Write([]byte("unauthorized"))
+				return
+			}
+
 			l.Info("in middleware")
 			h.ServeHTTP(w, r)
 		})
