@@ -1,0 +1,26 @@
+name: release and deploy
+on:
+  push:
+    tags:
+      - '*'
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  release:
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+        env:
+          GOPRIVATE: github.com/CoverWhale
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}

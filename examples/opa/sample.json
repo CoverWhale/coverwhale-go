@@ -1,0 +1,20 @@
+{
+	"operation": "HOTSHOT",
+	"commodities": [
+		"TEXTILES"
+	],
+	"vehicles": [
+		{
+			"vin": "1234",
+			"body_type": "TRACTOR",
+			"class": 8,
+			"amount": 85000
+		},
+		{
+			"vin": "1235",
+			"body_type": "TRACTOR",
+			"class": 8,
+			"amount": 95000
+		}
+	]
+}
