@@ -43,9 +43,14 @@ type Route struct {
 	Handler handlerWithError
 }
 
+func healthz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 // NewHTTPServer initializes and returns a new Server
 func NewHTTPServer(opts ...ServerOption) *Server {
 	r := chi.NewRouter()
+	r.Get("/healthz", healthz)
 
 	s := &Server{
 		Logger: logging.NewLogger(),
