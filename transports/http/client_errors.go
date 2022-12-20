@@ -2,8 +2,6 @@ package http
 
 import (
 	"fmt"
-	"runtime"
-	"strings"
 )
 
 // AppError holds information about an application error
@@ -40,15 +38,4 @@ func NewAppError(err error, status int) error {
 		status:  status,
 		details: err.Error(),
 	}
-}
-
-// GetCaller is a helper function to get the function name to provide context for an error
-func GetCaller() string {
-	pc, _, _, ok := runtime.Caller(1)
-	if !ok {
-		return "function name unknown"
-	}
-
-	funcName := strings.Split(runtime.FuncForPC(pc).Name(), ".")
-	return funcName[len(funcName)-1]
 }

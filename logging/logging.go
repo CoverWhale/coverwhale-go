@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -151,4 +152,16 @@ func Fatal(s interface{}) {
 
 func Fatalf(format string, s ...interface{}) {
 	std.Fatalf(format, s...)
+}
+
+// GetCaller is a helper function to get the function name to provide context for an error
+func GetCaller() string {
+	pc, _, _, ok := runtime.Caller(1)
+	if !ok {
+		return "function name unknown"
+	}
+
+	funcName := strings.Split(runtime.FuncForPC(pc).Name(), ".")
+	fmt.Println(funcName)
+	return funcName[1]
 }
