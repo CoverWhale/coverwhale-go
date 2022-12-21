@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -107,22 +108,16 @@ func (e *errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ce, ok := err.(ClientError)
-	if !ok {
-		e.logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(ErrInternalError.Error()))
+	var ce *ClientError
+	if errors.As(err, &ce) {
+		w.WriteHeader(ce.Status)
+		w.Write([]byte(ce.Body()))
 		return
 	}
 
-	body := ce.Body()
-
-	if ce.Status() == 401 || ce.Status() == 403 {
-		e.logger.Errorf("staus=%d, err=%s", ce.Status(), ce.Error())
-	}
-
-	w.WriteHeader(ce.Status())
-	w.Write(body)
+	e.logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write([]byte(ErrInternalError.Error()))
 }
 
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router

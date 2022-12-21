@@ -26,7 +26,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if ce != "" {
-		return cwhttp.NewAppError(fmt.Errorf("uh oh something is wrong"), 400)
+		return cwhttp.NewClientError(fmt.Errorf("uh oh something is wrong"), 400)
 	}
 
 	w.Write([]byte("this works!"))

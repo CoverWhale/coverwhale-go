@@ -3,8 +3,15 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/CoverWhale/coverwhale-go/logging"
+)
+
+var (
+	ErrTestingError = fmt.Errorf("testing error")
 )
 
 func TestNewHTTPServer(t *testing.T) {
@@ -65,8 +72,57 @@ func TestRegisterSubrouter(t *testing.T) {
 	paths := s.Router.Routes()
 
 	for _, path := range paths {
+		if path.Pattern == "/healthz" {
+			continue
+		}
 		if path.Pattern != fmt.Sprintf("%s/*", prefix) {
 			t.Errorf("expected prefix %s but got %s", fmt.Sprintf("%s/*", prefix), path)
 		}
 	}
+}
+
+func TestErrHandlerServeHTTP(t *testing.T) {
+	tt := []struct {
+		name    string
+		handler errHandler
+		err     error
+		status  int
+	}{
+		{
+			name: "400 error", handler: errHandler{
+				handler: func(w http.ResponseWriter, r *http.Request) error {
+					return NewClientError(ErrTestingError, 400)
+				},
+				logger: logging.NewLogger(),
+			},
+			err:    NewClientError(ErrTestingError, 400),
+			status: 400,
+		},
+		{
+			name: "500 error", handler: errHandler{
+				handler: func(w http.ResponseWriter, r *http.Request) error {
+					return ErrInternalError
+				},
+				logger: logging.NewLogger(),
+			},
+			err:    ErrInternalError,
+			status: 500,
+		},
+	}
+
+	for _, v := range tt {
+		t.Run(v.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/testing", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rr := httptest.NewRecorder()
+			v.handler.ServeHTTP(rr, req)
+
+			if status := rr.Code; status != v.status {
+				t.Errorf("Expected status %d but got %d", v.status, status)
+			}
+		})
+	}
+
 }
