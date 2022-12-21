@@ -84,26 +84,26 @@ func TestRegisterSubrouter(t *testing.T) {
 func TestErrHandlerServeHTTP(t *testing.T) {
 	tt := []struct {
 		name    string
-		handler errHandler
+		handler ErrHandler
 		err     error
 		status  int
 	}{
 		{
-			name: "400 error", handler: errHandler{
-				handler: func(w http.ResponseWriter, r *http.Request) error {
+			name: "400 error", handler: ErrHandler{
+				Handler: func(w http.ResponseWriter, r *http.Request) error {
 					return NewClientError(ErrTestingError, 400)
 				},
-				logger: logging.NewLogger(),
+				Logger: logging.NewLogger(),
 			},
 			err:    NewClientError(ErrTestingError, 400),
 			status: 400,
 		},
 		{
-			name: "500 error", handler: errHandler{
-				handler: func(w http.ResponseWriter, r *http.Request) error {
+			name: "500 error", handler: ErrHandler{
+				Handler: func(w http.ResponseWriter, r *http.Request) error {
 					return ErrInternalError
 				},
-				logger: logging.NewLogger(),
+				Logger: logging.NewLogger(),
 			},
 			err:    ErrInternalError,
 			status: 500,

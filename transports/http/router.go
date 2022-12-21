@@ -25,9 +25,9 @@ type handlerWithError func(http.ResponseWriter, *http.Request) error
 type MiddlewareWithLogger func(*Server, http.Handler) http.Handler
 
 // errHandler contains a handler that returns an error and a logger
-type errHandler struct {
-	handler handlerWithError
-	logger  *logging.Logger
+type ErrHandler struct {
+	Handler handlerWithError
+	Logger  *logging.Logger
 }
 
 // Server holds the http.Server, a logger, and the router to attach to the http.Server
@@ -41,7 +41,7 @@ type Server struct {
 type Route struct {
 	Method  string
 	Path    string
-	Handler handlerWithError
+	Handler http.Handler
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {
@@ -102,8 +102,8 @@ func SetIdleTimeout(t int) ServerOption {
 }
 
 // ServeHTTP satisfies the http.Handler interface to allow for handling of errors from handlers in one place
-func (e *errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := e.handler(w, r)
+func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := e.Handler(w, r)
 	if err == nil {
 		return
 	}
@@ -115,7 +115,7 @@ func (e *errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	e.logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
+	e.Logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write([]byte(ErrInternalError.Error()))
 }
@@ -129,10 +129,7 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 	}
 
 	for _, v := range routes {
-		subRouter.Method(v.Method, v.Path, &errHandler{
-			handler: v.Handler,
-			logger:  s.Logger,
-		})
+		subRouter.Method(v.Method, v.Path, v.Handler)
 	}
 
 	return s
