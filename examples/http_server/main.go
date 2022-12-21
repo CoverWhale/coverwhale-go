@@ -9,12 +9,17 @@ import (
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 )
 
-var routes = []cwhttp.Route{
-	{
-		Method:  http.MethodGet,
-		Path:    "/testing",
-		Handler: testing,
-	},
+func getRoutes(l *logging.Logger) []cwhttp.Route {
+	return []cwhttp.Route{
+		{
+			Method: http.MethodGet,
+			Path:   "/testing",
+			Handler: &cwhttp.ErrHandler{
+				Handler: testing,
+				Logger:  l,
+			},
+		},
+	}
 }
 
 func testing(w http.ResponseWriter, r *http.Request) error {
@@ -26,7 +31,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if ce != "" {
-		return cwhttp.NewAppError(fmt.Errorf("uh oh something is wrong"), 400)
+		return cwhttp.NewClientError(fmt.Errorf("uh oh something is wrong"), 400)
 	}
 
 	w.Write([]byte("this works!"))
@@ -55,6 +60,6 @@ func main() {
 		cwhttp.SetServerPort(9090),
 	)
 
-	s.RegisterSubRouter("/api/v1", routes, exampleMiddleware(s.Logger))
+	s.RegisterSubRouter("/api/v1", getRoutes(s.Logger), exampleMiddleware(s.Logger))
 	log.Fatal(s.Serve())
 }

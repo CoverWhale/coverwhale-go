@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -24,9 +25,9 @@ type handlerWithError func(http.ResponseWriter, *http.Request) error
 type MiddlewareWithLogger func(*Server, http.Handler) http.Handler
 
 // errHandler contains a handler that returns an error and a logger
-type errHandler struct {
-	handler handlerWithError
-	logger  *logging.Logger
+type ErrHandler struct {
+	Handler handlerWithError
+	Logger  *logging.Logger
 }
 
 // Server holds the http.Server, a logger, and the router to attach to the http.Server
@@ -40,7 +41,7 @@ type Server struct {
 type Route struct {
 	Method  string
 	Path    string
-	Handler handlerWithError
+	Handler http.Handler
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {
@@ -101,28 +102,22 @@ func SetIdleTimeout(t int) ServerOption {
 }
 
 // ServeHTTP satisfies the http.Handler interface to allow for handling of errors from handlers in one place
-func (e *errHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := e.handler(w, r)
+func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := e.Handler(w, r)
 	if err == nil {
 		return
 	}
 
-	ce, ok := err.(ClientError)
-	if !ok {
-		e.logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(ErrInternalError.Error()))
+	var ce *ClientError
+	if errors.As(err, &ce) {
+		w.WriteHeader(ce.Status)
+		w.Write([]byte(ce.Body()))
 		return
 	}
 
-	body := ce.Body()
-
-	if ce.Status() == 401 || ce.Status() == 403 {
-		e.logger.Errorf("staus=%d, err=%s", ce.Status(), ce.Error())
-	}
-
-	w.WriteHeader(ce.Status())
-	w.Write(body)
+	e.Logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write([]byte(ErrInternalError.Error()))
 }
 
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
@@ -134,10 +129,7 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 	}
 
 	for _, v := range routes {
-		subRouter.Method(v.Method, v.Path, &errHandler{
-			handler: v.Handler,
-			logger:  s.Logger,
-		})
+		subRouter.Method(v.Method, v.Path, v.Handler)
 	}
 
 	return s
