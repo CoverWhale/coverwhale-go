@@ -36,6 +36,11 @@ func (a *App) getSampleRoutes() []cwhttp.Route {
 			Path:    "/testing",
 			Handler: http.HandlerFunc(a.exampleGet),
 		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/testingCustom",
+			Handler: cwhttp.HandleWithContext(customHandlerType, a.DS),
+		},
 	}
 }
 
@@ -44,6 +49,14 @@ func (a *App) exampleGet(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 
 	data := a.DS.GetData(id)
+
+	w.Write([]byte(data))
+}
+
+func customHandlerType(w http.ResponseWriter, r *http.Request, ds DataStore) {
+	id := r.URL.Query().Get("id")
+
+	data := ds.GetData(id)
 
 	w.Write([]byte(data))
 }
