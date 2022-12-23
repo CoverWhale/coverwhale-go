@@ -11,18 +11,22 @@ type MockDS struct {
 	Data string
 }
 
+// GetData satisfies the datastore methods
 func (m MockDS) GetData(id string) string {
 	return m.Data
 }
 
 func TestExampleGet(t *testing.T) {
+	// instantiate the test datastore
 	ds := MockDS{
 		Data: "testing",
 	}
+	// define the app and set the datastore
 	a := App{
 		DS: ds,
 	}
 
+	// set up a test table for our tests
 	tt := []struct {
 		name    string
 		expect  string

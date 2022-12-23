@@ -73,6 +73,12 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 	return s
 }
 
+func HandleWithContext[T any](h func(http.ResponseWriter, *http.Request, T), ctx T) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h(w, r, ctx)
+	}
+}
+
 // SetServerPort sets the server listening port
 func SetServerPort(p int) ServerOption {
 	return func(s *Server) {
