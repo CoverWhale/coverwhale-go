@@ -19,7 +19,7 @@ func main() {
 
 	cwServer := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
-	).RegisterSubRouter("/api/v1", h.buildRoutes(l), middleware.Logger, middleware.Heartbeat("/api/v1/ping"))
+	).RegisterSubRouter("/api/v1", h.buildRoutes(l), middleware.Logger, middleware.Throttle(1))
 
 	h.Server = cwServer
 
