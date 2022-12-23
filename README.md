@@ -4,7 +4,7 @@ This is somewhat of an opinionated set of packages for Go development. By no mea
 
 ## HTTP Server
 
-Example is [here](examples/http_server/main.go)
+Examples are [here](examples/)
 
 ### Super Simple Example
 
@@ -16,32 +16,124 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 )
 
-var routes = []cwhttp.Route{
-	{
-        Method:  http.MethodGet,
-        Path:    "/testing",
-        Handler: testing,
-	},
-}
-
-func testing(w http.ResponseWriter, r *http.Request) error {
+func testing(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("this works!"))
-	return nil
 }
-
 
 func main() {
 	s := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
 	)
 
+	routes := []cwhttp.Route{
+		{
+			Method: http.MethodGet,
+			Path: "/testing",
+			Handler: http.HandlerFunc(testing)
+		},
+	}
+
 	s.RegisterSubRouter("/api/v1", routes)
 	log.Fatal(s.Serve())
 }
+```
+
+### Error Handlers
+
+This library exposes an `ErrHandler` type that returns an error from the handlers. Client errors can easily be generated with the `NewClientError` function. This 
+will automatically marshal the error value and return it to the caller. For example using an unauthorized error:
+
+```go
+import (
+	"github.com/CoverWhale/coverwhale-go/logging"	
+	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+)
+
+var logger *logging.Logger
+
+func myHandler(w http.ResponseWriter, r *http.Request) error {
+
+	if r.Header.Get("Authorization") == "" {
+		return cwhttp.NewClientError(fmt.Errorf("unauthorized"), http.StatusUnauthorized)
+	}
+
+	.../
+
+}
+
+var routes = []cwhttp.Route{
+	{
+		Method: http.MethodGet,
+		Path: "/myhandler",
+		Handler: &errHandler{
+			Handler: myHandler,
+			Logger: logger,
+		},
+	},
+}
+
+```
+
+### Handlers With a Struct Context
+
+This library also exposes a `HandleWithContext` function. This allows for custom handlers to be created with a context value (not context.WithValue). For example 
+passing a data source:
+
+```go
+import (
+	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+)
+
+var db *Database
+
+func myHandler(w http.ResponseWriter, r *http.Request, db *Database) {
+	id := chi.URLParam(r, "userId")
+	user := db.GetUser(id)
+
+	json.NewEncoder(w).Encode(user)
+}
+
+var routes = []cwhttp.Route{
+	{
+		Method: http.MethodGet,
+		Path: "/users/{userId}",
+		Handler: cwhttp.HandleWithContext(myHandler, db),
+	},
+}
+
+```
+
+### Custom Handlers
+
+To create custom handlers like above, you can just define your own type and implement the http.HandlerFunc similarly to how this library does:
+
+```go
+
+type myHandlerType func(http.ResponseWriter, *http.Request, MyObject)
+
+func myCustomHandlerType(h myHandlerType, obj MyObject) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		h(w, r, obj)
+	}
+}
+
+func myHandler(w http.ResponseWriter, r *http.Request, obj MyObject) {
+	obj.Do()
+	.../
+}
+
+var routes = []cwhttp.Route{
+	{
+		Method: http.MethodGet,
+		Path: "/testing",
+		Handler: myHandlerType(myHandler, obj),
+	},
+}
+
+
 ```
 
 ## Logging
