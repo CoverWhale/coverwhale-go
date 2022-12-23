@@ -129,7 +129,7 @@ var routes = []cwhttp.Route{
 	{
 		Method: http.MethodGet,
 		Path: "/testing",
-		Handler: myHandlerType(myHandler, obj),
+		Handler: myCustomHandlerType(myHandler, obj),
 	},
 }
 
