@@ -15,6 +15,11 @@ type AppConfig struct {
 	Port     int
 	Address  string
 	Protocol string
+	Data     Data
+}
+
+type Data struct {
+	SomeValue string
 }
 
 func main() {
