@@ -3,14 +3,12 @@ package config
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"cuelang.org/go/encoding/json"
 )
 
 var (
@@ -38,9 +36,8 @@ func Unmarshal[T any](config T, schema, filePath string) (T, error) {
 
 	switch ext {
 	case ".cue":
-		if err := cfg.unmarshalCue(); err != nil {
-			return config, err
-		}
+		bi := load.Instances([]string{cfg.filePath}, nil)
+		cfg.value = cfg.ctx.BuildInstance(bi[0])
 	case ".json", ".yaml", ".yml":
 		if err := cfg.unmarshalJSON(); err != nil {
 			return config, err
@@ -52,39 +49,8 @@ func Unmarshal[T any](config T, schema, filePath string) (T, error) {
 	return cfg.loadCueConfig()
 }
 
-func (c *cueConfig[T]) thing(f string) {
-	r, err := os.Open(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-	b, err := json.NewDecoder(nil, c.filePath, r).Extract()
-	if err != nil {
-		log.Println(err)
-	}
-
-	val := c.ctx.BuildExpr(b, nil)
-	fmt.Println(val)
-}
-
-// unmarshalCue loads the cue file from the cueConfig filePath. It builds the package instances and sets the
-// cueConfig value to the first instance.
-func (c *cueConfig[T]) unmarshalCue() error {
-	buildinstances := load.Instances([]string{c.filePath}, nil)
-
-	insts, err := c.ctx.BuildInstances(buildinstances)
-	if err != nil {
-		return err
-	}
-
-	c.value = insts[0].Value()
-
-	return nil
-}
-
-// unmarshalJSON is similar to the unmarshalCue() method but reads JSON/YAML files. It loads the data from the
-// cueConfig filePath and compiles the cue Value from the data.
+// unmarshalJSON loads data from JSON/YAML files and compiles the cue Value from the data.
 func (c *cueConfig[T]) unmarshalJSON() error {
-
 	f, err := os.Open(c.filePath)
 	if err != nil {
 		return err
