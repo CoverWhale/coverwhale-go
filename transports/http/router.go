@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -142,6 +143,21 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 }
 
 // Serve starts the http.Server
-func (s *Server) Serve() error {
-	return s.apiServer.ListenAndServe()
+func (s *Server) Serve(errChan chan<- error) {
+	s.Logger.Infof("starting HTTP server on %s", s.apiServer.Addr)
+	if err := s.apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		errChan <- err
+	}
+}
+
+func (s *Server) ShutdownServer(ctx context.Context) {
+	s.Logger.Info("shutting down server")
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := s.apiServer.Shutdown(ctx); err != nil {
+		s.Logger.Errorf("error shutting down server: %v", err)
+	}
+
+	s.Logger.Info("server stopped")
 }

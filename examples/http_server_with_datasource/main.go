@@ -1,8 +1,11 @@
 package main
 
 import (
-	"log"
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
@@ -13,7 +16,8 @@ type DataStore interface {
 }
 
 type Server interface {
-	Serve() error
+	Serve(chan<- error)
+	ShutdownServer(context.Context)
 }
 
 type App struct {
@@ -79,6 +83,7 @@ func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
 }
 
 func main() {
+	ctx := context.Background()
 	s := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
 	)
@@ -94,5 +99,21 @@ func main() {
 	}
 
 	s.RegisterSubRouter("/api/v1", a.getSampleRoutes(), exampleMiddleware(s.Logger))
-	log.Fatal(s.Serve())
+	errChan := make(chan error, 1)
+	go s.Serve(errChan)
+
+	go func() {
+		serverErr := <-errChan
+		if serverErr != nil {
+			s.Logger.Errorf("error starting server: %v", serverErr)
+			s.ShutdownServer(ctx)
+		}
+	}()
+
+	sigTerm := make(chan os.Signal, 1)
+	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	sig := <-sigTerm
+	s.Logger.Infof("received signal: %s", sig)
+	s.ShutdownServer(ctx)
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type Server interface {
-	Serve() error
+	Serve(chan<- error)
 }
 
 type Application struct {
