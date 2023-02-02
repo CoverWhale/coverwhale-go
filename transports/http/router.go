@@ -9,6 +9,7 @@ import (
 
 	"github.com/CoverWhale/coverwhale-go/logging"
 	"github.com/go-chi/chi/v5"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 var (
@@ -36,6 +37,7 @@ type Server struct {
 	apiServer *http.Server
 	Logger    *logging.Logger
 	Router    *chi.Mux
+	NewRelic  *newrelic.Application
 }
 
 // Route contains the information needed for an HTTP handler
@@ -52,7 +54,6 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 // NewHTTPServer initializes and returns a new Server
 func NewHTTPServer(opts ...ServerOption) *Server {
 	r := chi.NewRouter()
-	r.Get("/healthz", healthz)
 
 	s := &Server{
 		Logger: logging.NewLogger(),
@@ -69,6 +70,7 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 		opt(s)
 	}
 
+	s.getHealth()
 	s.apiServer.Handler = r
 
 	return s
@@ -78,6 +80,15 @@ func HandleWithContext[T any](h func(http.ResponseWriter, *http.Request, T), ctx
 	return func(w http.ResponseWriter, r *http.Request) {
 		h(w, r, ctx)
 	}
+}
+
+func (s *Server) getHealth() {
+	if s.NewRelic != nil {
+		s.Router.Get(newrelic.WrapHandleFunc(s.NewRelic, "/healthz", healthz))
+		return
+	}
+
+	s.Router.Get("/healthz", healthz)
 }
 
 // SetServerPort sets the server listening port
@@ -108,6 +119,14 @@ func SetIdleTimeout(t int) ServerOption {
 	}
 }
 
+func SetNewRelicApp(a *newrelic.Application) ServerOption {
+	return func(s *Server) {
+		if a != nil {
+			s.NewRelic = a
+		}
+	}
+}
+
 // ServeHTTP satisfies the http.Handler interface to allow for handling of errors from handlers in one place
 func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := e.Handler(w, r)
@@ -130,9 +149,24 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
 	subRouter := chi.NewRouter()
-	s.Router.Mount(prefix, subRouter)
+	// wrap subrouter to catch all middleware and total metrics for the subrouter
+	if s.NewRelic != nil {
+		s.Router.Mount(newrelic.WrapHandle(s.NewRelic, prefix, subRouter))
+	} else {
+		s.Router.Mount(prefix, subRouter)
+	}
+
 	for _, m := range middleware {
 		subRouter.Use(m)
+	}
+
+	if s.NewRelic != nil {
+		for _, v := range routes {
+			// wrap each handler specifically for more granular metrics
+			_, handler := newrelic.WrapHandle(s.NewRelic, fmt.Sprintf("%s%s", prefix, v.Path), v.Handler)
+			subRouter.Method(v.Method, v.Path, handler)
+		}
+		return s
 	}
 
 	for _, v := range routes {
