@@ -10,7 +10,7 @@ type Container struct {
 
 type ContainerOpt func(*Container)
 
-func NewContainer(name string, opts ...ContainerOpt) corev1.Container {
+func NewContainer(name string, opts ...ContainerOpt) Container {
 	c := Container{
 		corev1.Container{
 			Name: name,
@@ -21,7 +21,7 @@ func NewContainer(name string, opts ...ContainerOpt) corev1.Container {
 		v(&c)
 	}
 
-	return c.Container
+	return c
 }
 
 func ContainerImage(image string) ContainerOpt {

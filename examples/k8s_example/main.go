@@ -28,6 +28,10 @@ func main() {
 		k8s.ContainerPort("https", 443),
 	)
 
+	// can also call the options later for conditionals
+	f := k8s.ContainerEnvVar("added", "later")
+	f(&c)
+
 	p := k8s.NewPodSpec("test",
 		k8s.PodLabel("testing", "again"),
 		k8s.PodContainer(c),

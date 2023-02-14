@@ -12,7 +12,7 @@ type Service struct {
 
 type ServiceOpt func(*Service)
 
-func NewService(name string, opts ...ServiceOpt) corev1.Service {
+func NewService(name string, opts ...ServiceOpt) Service {
 	service := Service{
 		Service: corev1.Service{
 			TypeMeta: metav1.TypeMeta{
@@ -32,7 +32,7 @@ func NewService(name string, opts ...ServiceOpt) corev1.Service {
 		v(&service)
 	}
 
-	return service.Service
+	return service
 }
 
 func ServiceNamespace(n string) ServiceOpt {

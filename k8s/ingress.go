@@ -8,15 +8,13 @@ import (
 )
 
 type Ingress struct {
-	Name string
 	networkingv1.Ingress
 }
 
 type IngressOpt func(*Ingress)
 
-func NewIngress(name string, opts ...IngressOpt) networkingv1.Ingress {
+func NewIngress(name string, opts ...IngressOpt) Ingress {
 	i := Ingress{
-		Name: name,
 		Ingress: networkingv1.Ingress{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Ingress",
@@ -32,7 +30,7 @@ func NewIngress(name string, opts ...IngressOpt) networkingv1.Ingress {
 		v(&i)
 	}
 
-	return i.Ingress
+	return i
 }
 
 func IngressNamespace(n string) IngressOpt {
@@ -84,7 +82,7 @@ func IngressRule(r Rule) IngressOpt {
 			}
 			i.Spec.TLS = append(i.Spec.TLS, networkingv1.IngressTLS{
 				Hosts:      []string{r.Host},
-				SecretName: fmt.Sprintf("%s-tls", i.Name),
+				SecretName: fmt.Sprintf("%s-tls", i.Ingress.ObjectMeta.Name),
 			})
 		}
 		i.Ingress.Spec.Rules = append(i.Ingress.Spec.Rules, networkingv1.IngressRule{

@@ -11,7 +11,7 @@ type Secret struct {
 
 type SecretOpt func(*Secret)
 
-func NewSecret(name string, opts ...SecretOpt) corev1.Secret {
+func NewSecret(name string, opts ...SecretOpt) Secret {
 	s := Secret{
 		Secret: corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -28,7 +28,7 @@ func NewSecret(name string, opts ...SecretOpt) corev1.Secret {
 		v(&s)
 	}
 
-	return s.Secret
+	return s
 }
 
 func SecretNamespace(n string) SecretOpt {

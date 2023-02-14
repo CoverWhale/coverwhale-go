@@ -16,7 +16,7 @@ type Deployment struct {
 
 type DeploymentOpt func(*Deployment)
 
-func NewDeployment(name string, depOpts ...DeploymentOpt) *appsv1.Deployment {
+func NewDeployment(name string, depOpts ...DeploymentOpt) *Deployment {
 	dep := &Deployment{
 		appsv1.Deployment{
 			TypeMeta: metav1.TypeMeta{
@@ -39,7 +39,7 @@ func NewDeployment(name string, depOpts ...DeploymentOpt) *appsv1.Deployment {
 		v(dep)
 	}
 
-	return &dep.Deployment
+	return dep
 
 }
 
@@ -55,9 +55,9 @@ func DeploymentSelector(key, value string) DeploymentOpt {
 	}
 }
 
-func DeploymentPodSpec(p corev1.PodTemplateSpec) DeploymentOpt {
+func DeploymentPodSpec(p PodSpec) DeploymentOpt {
 	return func(d *Deployment) {
-		d.Spec.Template = p
+		d.Spec.Template = p.Spec
 	}
 }
 

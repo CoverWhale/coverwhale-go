@@ -14,8 +14,8 @@ type PodSpec struct {
 	Spec      corev1.PodTemplateSpec
 }
 
-func NewPodSpec(name string, opts ...PodOpt) corev1.PodTemplateSpec {
-	pod := &PodSpec{
+func NewPodSpec(name string, opts ...PodOpt) PodSpec {
+	pod := PodSpec{
 		Spec: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -27,10 +27,10 @@ func NewPodSpec(name string, opts ...PodOpt) corev1.PodTemplateSpec {
 	}
 
 	for _, v := range opts {
-		v(pod)
+		v(&pod)
 	}
 
-	return pod.Spec
+	return pod
 }
 
 func PodLabel(key, value string) PodOpt {
@@ -41,8 +41,8 @@ func PodLabel(key, value string) PodOpt {
 	}
 }
 
-func PodContainer(c corev1.Container) PodOpt {
+func PodContainer(c Container) PodOpt {
 	return func(p *PodSpec) {
-		p.Spec.Spec.Containers = append(p.Spec.Spec.Containers, c)
+		p.Spec.Spec.Containers = append(p.Spec.Spec.Containers, c.Container)
 	}
 }
