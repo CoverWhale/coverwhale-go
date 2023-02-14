@@ -5,16 +5,15 @@ import (
 	"log"
 
 	"github.com/CoverWhale/coverwhale-go/k8s"
-	"sigs.k8s.io/yaml"
 )
 
 func printYaml(i interface{}) {
-	o, err := yaml.Marshal(i)
+	data, err := k8s.MarshalYaml(i)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("---\n%s\n", o)
+	fmt.Print(data)
 }
 
 func main() {
@@ -48,6 +47,33 @@ func main() {
 		k8s.ServicePort(80, 8080),
 		k8s.ServiceSelector("app", "mytest"),
 	)
-
 	printYaml(s)
+
+	r := k8s.Rule{
+		Host: "test.test.com",
+		TLS:  true,
+		Paths: []k8s.Path{
+			{
+				Name:    "/test",
+				Service: "test",
+				Port:    8080,
+				Type:    "PathPrefix",
+			},
+		},
+	}
+	i := k8s.NewIngress("test",
+		k8s.IngressClass("nginx"),
+		k8s.IngressNamespace("testing"),
+		k8s.IngressRule(r),
+	)
+
+	printYaml(i)
+
+	sec := k8s.NewSecret("test",
+		k8s.SecretNamespace("testing"),
+		k8s.SecretData("apiKey", []byte("thekey")),
+	)
+
+	printYaml(sec)
+
 }
