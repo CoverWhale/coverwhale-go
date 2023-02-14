@@ -46,3 +46,20 @@ func PodContainer(c Container) PodOpt {
 		p.Spec.Spec.Containers = append(p.Spec.Spec.Containers, c.Container)
 	}
 }
+
+func PodInitContainer(c Container) PodOpt {
+	return func(p *PodSpec) {
+		p.Spec.Spec.InitContainers = append(p.Spec.Spec.InitContainers, c.Container)
+	}
+}
+
+// func PodVolume(name string, pv PersistentVolume) PodOpt {
+// 	return func(p *PodSpec) {
+// 		p.Spec.Spec.Volumes = append(p.Spec.Spec.Volumes, corev1.Volume{
+// 			Name: name,
+// 			VolumeSource: corev1.VolumeSource{
+// 				pv.PersistentVolume,
+// 			},
+// 		})
+// 	}
+// }

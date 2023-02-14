@@ -55,6 +55,28 @@ func ContainerEnvFromSecret(secret, name, key string) ContainerOpt {
 	}
 }
 
+func ContainerEnvFromConfigMap(configmap, name, key string) ContainerOpt {
+	return func(c *Container) {
+		c.Env = append(c.Env, corev1.EnvVar{
+			Name: name,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configmap,
+					},
+					Key: key,
+				},
+			},
+		})
+	}
+}
+
+func ContainerCommands(commands []string) ContainerOpt {
+	return func(c *Container) {
+		c.Command = commands
+	}
+}
+
 func ContainerImagePullPolicy(policy corev1.PullPolicy) ContainerOpt {
 	return func(c *Container) {
 		c.ImagePullPolicy = policy
@@ -72,6 +94,15 @@ func ContainerPort(name string, port int) ContainerOpt {
 		c.Ports = append(c.Ports, corev1.ContainerPort{
 			Name:          name,
 			ContainerPort: int32(port),
+		})
+	}
+}
+
+func ContainerVolume(path string, pv PersistentVolume) ContainerOpt {
+	return func(c *Container) {
+		c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
+			MountPath: path,
+			Name:      pv.ObjectMeta.Name,
 		})
 	}
 }

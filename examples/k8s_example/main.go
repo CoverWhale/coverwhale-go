@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/CoverWhale/coverwhale-go/k8s"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func printYaml(i interface{}) {
@@ -17,6 +18,39 @@ func printYaml(i interface{}) {
 }
 
 func main() {
+
+	pv := k8s.NewPersistentVolume("myvolume",
+		k8s.PersistentVolumeHostPath("/", corev1.HostPathDirectory),
+	)
+
+	printYaml(pv)
+
+	n := k8s.NewNamespace("test",
+		k8s.NamespaceAnnotation("test", "test2"),
+		k8s.NamespaceAnnotations(map[string]string{
+			"hey": "there",
+			"yo":  "what's up",
+		}),
+	)
+
+	printYaml(n)
+
+	multiLine := `this is
+a multiline
+config
+`
+
+	conf := k8s.NewConfigMap("myconfigmap",
+		k8s.ConfigMapNamespace("testing"),
+		k8s.ConfigMapData("multiline", multiLine),
+		k8s.ConfigMapDataMap(map[string]string{
+			"testing": "123",
+			"hey":     "this is a test",
+		}),
+		k8s.ConfigMapBinaryData("test", []byte("gimme some bytes")),
+	)
+
+	printYaml(conf)
 
 	c := k8s.NewContainer("test",
 		k8s.ContainerImage("myrepo/ratings:latest"),

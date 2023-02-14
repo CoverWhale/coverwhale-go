@@ -23,9 +23,7 @@ func NewDeployment(name string, depOpts ...DeploymentOpt) *Deployment {
 				Kind:       "Deployment",
 				APIVersion: "apps/v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
+			ObjectMeta: newObjectMeta(name),
 			Spec: appsv1.DeploymentSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: make(map[string]string),
@@ -45,13 +43,27 @@ func NewDeployment(name string, depOpts ...DeploymentOpt) *Deployment {
 
 func DeploymentNamespace(n string) DeploymentOpt {
 	return func(d *Deployment) {
-		d.ObjectMeta.Namespace = n
+		setNamespace(n, &d.ObjectMeta)
 	}
 }
 
 func DeploymentSelector(key, value string) DeploymentOpt {
 	return func(d *Deployment) {
-		d.Spec.Selector.MatchLabels[key] = value
+		metav1.AddLabelToSelector(d.Spec.Selector, key, value)
+	}
+}
+
+func DeploymentLabel(key, value string) DeploymentOpt {
+	return func(d *Deployment) {
+		addLabel(key, value, &d.ObjectMeta)
+	}
+}
+
+func DeploymentLabels(labels map[string]string) DeploymentOpt {
+	return func(d *Deployment) {
+		for k, v := range labels {
+			addLabel(k, v, &d.ObjectMeta)
+		}
 	}
 }
 
