@@ -2,6 +2,7 @@ package k8s
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Container struct {
@@ -104,5 +105,27 @@ func ContainerVolume(path string, pv PersistentVolume) ContainerOpt {
 			MountPath: path,
 			Name:      pv.ObjectMeta.Name,
 		})
+	}
+}
+
+type HTTPProbe struct {
+	Path          string
+	Port          int
+	IntialDelay   int
+	PeriodSeconds int
+}
+
+func ContainerLivenessProbeHTTP(h HTTPProbe) ContainerOpt {
+	return func(c *Container) {
+		c.LivenessProbe = &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: h.Path,
+					Port: intstr.FromInt(h.Port),
+				},
+			},
+			InitialDelaySeconds: int32(h.IntialDelay),
+			PeriodSeconds:       int32(h.PeriodSeconds),
+		}
 	}
 }

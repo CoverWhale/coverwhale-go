@@ -52,6 +52,13 @@ config
 
 	printYaml(conf)
 
+	hp := k8s.HTTPProbe{
+		Path:          "/healthz",
+		Port:          8080,
+		PeriodSeconds: 10,
+		IntialDelay:   10,
+	}
+
 	c := k8s.NewContainer("test",
 		k8s.ContainerImage("myrepo/ratings:latest"),
 		k8s.ContainerEnvVar("hey", "there"),
@@ -60,6 +67,7 @@ config
 		k8s.ContainerArgs([]string{"server", "start"}),
 		k8s.ContainerPort("http", 8080),
 		k8s.ContainerPort("https", 443),
+		k8s.ContainerLivenessProbeHTTP(hp),
 	)
 
 	// can also call the options later for conditionals
