@@ -20,9 +20,7 @@ func NewIngress(name string, opts ...IngressOpt) Ingress {
 				Kind:       "Ingress",
 				APIVersion: "networking.k8s.io/v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
+			ObjectMeta: newObjectMeta(name),
 		},
 	}
 
@@ -77,9 +75,7 @@ func IngressRule(r Rule) IngressOpt {
 
 	return func(i *Ingress) {
 		if r.TLS {
-			i.ObjectMeta.Annotations = map[string]string{
-				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
-			}
+			addAnnotation("cert-manager.io/cluster-issuer", "letsencrypt-prod", &i.ObjectMeta)
 			i.Spec.TLS = append(i.Spec.TLS, networkingv1.IngressTLS{
 				Hosts:      []string{r.Host},
 				SecretName: fmt.Sprintf("%s-tls", i.Ingress.ObjectMeta.Name),

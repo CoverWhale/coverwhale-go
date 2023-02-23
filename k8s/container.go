@@ -2,6 +2,7 @@ package k8s
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Container struct {
@@ -55,6 +56,28 @@ func ContainerEnvFromSecret(secret, name, key string) ContainerOpt {
 	}
 }
 
+func ContainerEnvFromConfigMap(configmap, name, key string) ContainerOpt {
+	return func(c *Container) {
+		c.Env = append(c.Env, corev1.EnvVar{
+			Name: name,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configmap,
+					},
+					Key: key,
+				},
+			},
+		})
+	}
+}
+
+func ContainerCommands(commands []string) ContainerOpt {
+	return func(c *Container) {
+		c.Command = commands
+	}
+}
+
 func ContainerImagePullPolicy(policy corev1.PullPolicy) ContainerOpt {
 	return func(c *Container) {
 		c.ImagePullPolicy = policy
@@ -73,5 +96,36 @@ func ContainerPort(name string, port int) ContainerOpt {
 			Name:          name,
 			ContainerPort: int32(port),
 		})
+	}
+}
+
+func ContainerVolume(path string, pv PersistentVolume) ContainerOpt {
+	return func(c *Container) {
+		c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
+			MountPath: path,
+			Name:      pv.ObjectMeta.Name,
+		})
+	}
+}
+
+type HTTPProbe struct {
+	Path          string
+	Port          int
+	IntialDelay   int
+	PeriodSeconds int
+}
+
+func ContainerLivenessProbeHTTP(h HTTPProbe) ContainerOpt {
+	return func(c *Container) {
+		c.LivenessProbe = &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: h.Path,
+					Port: intstr.FromInt(h.Port),
+				},
+			},
+			InitialDelaySeconds: int32(h.IntialDelay),
+			PeriodSeconds:       int32(h.PeriodSeconds),
+		}
 	}
 }
