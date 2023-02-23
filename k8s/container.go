@@ -111,7 +111,7 @@ func ContainerVolume(path string, pv PersistentVolume) ContainerOpt {
 type HTTPProbe struct {
 	Path          string
 	Port          int
-	IntialDelay   int
+	InitialDelay  int
 	PeriodSeconds int
 }
 
@@ -124,7 +124,7 @@ func ContainerLivenessProbeHTTP(h HTTPProbe) ContainerOpt {
 					Port: intstr.FromInt(h.Port),
 				},
 			},
-			InitialDelaySeconds: int32(h.IntialDelay),
+			InitialDelaySeconds: int32(h.InitialDelay),
 			PeriodSeconds:       int32(h.PeriodSeconds),
 		}
 	}
