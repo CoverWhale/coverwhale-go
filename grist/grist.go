@@ -23,8 +23,11 @@ type Request struct {
 	Method   string
 	Document string
 	Table    string
+	Filter   json.RawMessage
 	Data     io.Reader
 }
+
+type RequestOpt func(*Request)
 
 func NewClient(opts ...ClientOpt) *Client {
 	c := &Client{}
@@ -66,13 +69,60 @@ func (c *Client) GetDocument(document string) (json.RawMessage, error) {
 	return c.httpRequest(request)
 }
 
+func SetDocument(d string) RequestOpt {
+	return func(r *Request) {
+		r.Document = d
+	}
+}
+
+func SetTable(t string) RequestOpt {
+	return func(r *Request) {
+		r.Table = t
+	}
+}
+
+func SetFilter(f json.RawMessage) RequestOpt {
+	return func(r *Request) {
+		r.Filter = f
+	}
+}
+
+func (c *Client) GetRecordsWithOptions(opts ...RequestOpt) (json.RawMessage, error) {
+	var r Request
+
+	for _, opt := range opts {
+		opt(&r)
+	}
+
+	return c.getRecords(r)
+}
+
 func (c *Client) GetRecords(document, table string) (json.RawMessage, error) {
+
 	request := Request{
 		Path:   fmt.Sprintf("/api/docs/%s/tables/%s/records", document, table),
 		Method: http.MethodGet,
 	}
 
-	return c.httpRequest(request)
+	return c.getRecords(request)
+}
+
+func (c *Client) GetFilteredRecords(document, table string, filter json.RawMessage) (json.RawMessage, error) {
+	request := Request{
+		Path:   fmt.Sprintf("/api/docs/%s/tables/%s/records", document, table),
+		Method: http.MethodGet,
+	}
+
+	if filter == nil {
+		request.Filter = filter
+	}
+
+	return c.getRecords(request)
+
+}
+
+func (c *Client) getRecords(r Request) (json.RawMessage, error) {
+	return c.httpRequest(r)
 }
 
 func (c *Client) CreateRecord(document, table string, r io.Reader) (json.RawMessage, error) {
@@ -93,6 +143,12 @@ func (c *Client) httpRequest(request Request) (json.RawMessage, error) {
 	req, err := http.NewRequest(request.Method, url, request.Data)
 	if err != nil {
 		return nil, err
+	}
+
+	if request.Filter != nil {
+		q := req.URL.Query()
+		q.Add("filter", string(request.Filter))
+		req.URL.RawQuery = q.Encode()
 	}
 
 	req.Header.Add("Authorization", token)

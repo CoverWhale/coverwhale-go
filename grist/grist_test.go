@@ -6,14 +6,29 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
 type GristTest struct {
-	data     []byte
-	response []byte
+	expected Data
+	data     Data
 	document string
 	key      string
+	filter   json.RawMessage
+}
+
+type Data struct {
+	Records []Record `json:"records"`
+}
+
+type Record struct {
+	ID     int     `json:"id"`
+	Fields []Field `json:"fields"`
+}
+
+type Field struct {
+	Foo string `json:"foo"`
 }
 
 func getHandler(gt GristTest) http.HandlerFunc {
@@ -28,25 +43,43 @@ func getHandler(gt GristTest) http.HandlerFunc {
 			return
 		}
 
-		w.Write(gt.data)
+		u := r.URL.Query().Get("filter")
+
+		if gt.filter != nil && u != string(gt.filter) {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		// always filter only the first item. Lazy test.
+		if gt.filter != nil {
+			gt.data.Records = gt.data.Records[:1]
+		}
+
+		if err := json.NewEncoder(w).Encode(gt.data); err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
 func postHandler(gt GristTest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var data json.RawMessage
+		var data Data
 
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		if !bytes.Equal(gt.data, data) {
+		if !reflect.DeepEqual(gt.data, data) {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		w.Write(gt.response)
+		if err := json.NewEncoder(w).Encode(gt.expected); err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -55,10 +88,76 @@ func TestGetDocument(t *testing.T) {
 		name     string
 		key      string
 		document string
-		expected []byte
+		expected Data
+		data     Data
 		err      error
+		filter   json.RawMessage
 	}{
-		{name: "document request", key: "test", document: "document1", expected: []byte(`[{"id": 1, "name": "test}]`)},
+		{
+			name: "document request",
+			key:  "test", document: "document1",
+			data: Data{
+				Records: []Record{
+					{
+						ID: 1,
+						Fields: []Field{
+							{
+								Foo: "test",
+							},
+						},
+					},
+				},
+			},
+			expected: Data{
+				Records: []Record{
+					{
+						ID: 1,
+						Fields: []Field{
+							{
+								Foo: "test",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "filtered document request",
+			key:  "test", document: "document1",
+			data: Data{
+				Records: []Record{
+					{
+						ID: 1,
+						Fields: []Field{
+							{
+								Foo: "test",
+							},
+						},
+					},
+					{
+						ID: 1,
+						Fields: []Field{
+							{
+								Foo: "test",
+							},
+						},
+					},
+				},
+			},
+			expected: Data{
+				Records: []Record{
+					{
+						ID: 1,
+						Fields: []Field{
+							{
+								Foo: "test",
+							},
+						},
+					},
+				},
+			},
+			filter: json.RawMessage(`{"id": [1]}`),
+		},
 		{name: "no api key", document: "document1", err: fmt.Errorf("%s", http.StatusText(http.StatusUnauthorized))},
 		{name: "no document", document: "", err: fmt.Errorf("%s", http.StatusText(http.StatusNotFound))},
 	}
@@ -66,9 +165,11 @@ func TestGetDocument(t *testing.T) {
 	for _, v := range tt {
 		t.Run(v.name, func(t *testing.T) {
 			gt := GristTest{
-				data:     v.expected,
+				expected: v.expected,
 				document: v.document,
 				key:      v.key,
+				data:     v.data,
+				filter:   v.filter,
 			}
 
 			s := httptest.NewServer(getHandler(gt))
@@ -79,34 +180,67 @@ func TestGetDocument(t *testing.T) {
 				SetAPIKey(v.key),
 			)
 
-			res, err := c.GetDocument(v.document)
+			res, err := c.GetRecordsWithOptions(
+				SetDocument(v.document),
+				SetFilter(v.filter),
+			)
 			if v.err != nil && v.err == nil {
 				t.Errorf("expected no errors but got %v", err)
 			}
 
-			if !bytes.Equal(res, v.expected) {
-				t.Errorf("expected %s but got %s", string(v.expected), string(res))
+			// expected error here so we are good
+			if v.err != nil && err != nil {
+				return
+			}
+
+			var d Data
+			if err := json.Unmarshal(res, &d); err != nil {
+				t.Errorf("error unmarshaling: %v", err)
+			}
+
+			if !reflect.DeepEqual(d, v.expected) {
+				t.Errorf("expected \n%#v\nbut got \n%#v", v.expected, d)
 			}
 
 		})
 	}
 }
 
-func TestPostTable(t *testing.T) {
+func TestCreateRecord(t *testing.T) {
 	tt := []struct {
 		name     string
-		data     []byte
-		expected []byte
+		data     Data
+		expected Data
 		err      error
 	}{
-		{name: "normal post", data: []byte(`{"records": [{"fields": {"test": 1}}]}`), expected: []byte(`{"records": [{"id": 1}]}`)},
+		{
+			name: "normal post",
+			data: Data{
+				Records: []Record{
+					{
+						Fields: []Field{
+							{
+								Foo: "test",
+							},
+						},
+					},
+				},
+			},
+			expected: Data{
+				Records: []Record{
+					{
+						ID: 1,
+					},
+				},
+			},
+		},
 	}
 
 	for _, v := range tt {
 		t.Run(v.name, func(t *testing.T) {
 			gt := GristTest{
 				data:     v.data,
-				response: v.expected,
+				expected: v.expected,
 			}
 
 			s := httptest.NewServer(postHandler(gt))
@@ -116,13 +250,28 @@ func TestPostTable(t *testing.T) {
 				SetURL(s.URL),
 			)
 
-			res, err := c.CreateRecord("test", "test", bytes.NewReader(v.data))
+			d, err := json.Marshal(v.data)
+			if err != nil {
+				t.Errorf("error marshaling: %v", err)
+			}
+
+			res, err := c.CreateRecord("test", "test", bytes.NewReader(d))
 			if err != nil && v.err == nil {
 				t.Errorf("expected no errors but got %v", err)
 			}
 
-			if !bytes.Equal(res, v.expected) {
-				t.Errorf("expected %s but got %s", string(v.expected), string(res))
+			// expected error here so we are good
+			if v.err != nil && err != nil {
+				return
+			}
+
+			var respData Data
+			if err := json.Unmarshal(res, &respData); err != nil {
+				t.Errorf("error unmarshaling: %v", err)
+			}
+
+			if !reflect.DeepEqual(respData, v.expected) {
+				t.Errorf("expected \n%#v\nbut got \n%#v", v.expected, respData)
 			}
 
 		})
