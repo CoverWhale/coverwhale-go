@@ -94,6 +94,8 @@ func (c *Client) GetRecordsWithOptions(opts ...RequestOpt) (json.RawMessage, err
 		opt(&r)
 	}
 
+	r.Path = fmt.Sprintf("/api/docs/%s/tables/%s/records", r.Document, r.Table)
+
 	return c.getRecords(r)
 }
 
@@ -137,6 +139,10 @@ func (c *Client) CreateRecord(document, table string, r io.Reader) (json.RawMess
 }
 
 func (c *Client) httpRequest(request Request) (json.RawMessage, error) {
+	if request.Document == "" || request.Table == "" {
+		return nil, fmt.Errorf("document and table must be supplied")
+	}
+
 	url := fmt.Sprintf("%s%s", c.URL, request.Path)
 	token := fmt.Sprintf("Bearer %s", c.token)
 
