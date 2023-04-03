@@ -15,7 +15,7 @@ type GristTest struct {
 	data     Data
 	document string
 	key      string
-	filter   map[string]json.RawMessage
+	filter   json.RawMessage
 }
 
 type Data struct {
@@ -43,6 +43,14 @@ func getHandler(gt GristTest) http.HandlerFunc {
 			return
 		}
 
+		u := r.URL.Query().Get("filter")
+
+		if gt.filter != nil && u != string(gt.filter) {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		// always filter only the first item. Lazy test.
 		if gt.filter != nil {
 			gt.data.Records = gt.data.Records[:1]
 		}
@@ -83,7 +91,7 @@ func TestGetDocument(t *testing.T) {
 		expected Data
 		data     Data
 		err      error
-		filter   map[string]json.RawMessage
+		filter   json.RawMessage
 	}{
 		{
 			name: "document request",
@@ -148,9 +156,7 @@ func TestGetDocument(t *testing.T) {
 					},
 				},
 			},
-			filter: map[string]json.RawMessage{
-				"filter": json.RawMessage(`{"id": [1]}`),
-			},
+			filter: json.RawMessage(`{"id": [1]}`),
 		},
 		{name: "no api key", document: "document1", err: fmt.Errorf("%s", http.StatusText(http.StatusUnauthorized))},
 		{name: "no document", document: "", err: fmt.Errorf("%s", http.StatusText(http.StatusNotFound))},
@@ -174,7 +180,10 @@ func TestGetDocument(t *testing.T) {
 				SetAPIKey(v.key),
 			)
 
-			res, err := c.GetFilteredRecords(v.document, "", v.filter)
+			res, err := c.GetRecordsWithOptions(
+				SetDocument(v.document),
+				SetFilter(v.filter),
+			)
 			if v.err != nil && v.err == nil {
 				t.Errorf("expected no errors but got %v", err)
 			}
