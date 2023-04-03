@@ -23,8 +23,11 @@ type Request struct {
 	Method   string
 	Document string
 	Table    string
+	Filter   map[string]json.RawMessage
 	Data     io.Reader
 }
+
+type RequestOpt func(*Request)
 
 func NewClient(opts ...ClientOpt) *Client {
 	c := &Client{}
@@ -72,7 +75,25 @@ func (c *Client) GetRecords(document, table string) (json.RawMessage, error) {
 		Method: http.MethodGet,
 	}
 
-	return c.httpRequest(request)
+	return c.getRecords(request)
+}
+
+func (c *Client) GetFilteredRecords(document, table string, filter map[string]json.RawMessage) (json.RawMessage, error) {
+	request := Request{
+		Path:   fmt.Sprintf("/api/docs/%s/tables/%s/records", document, table),
+		Method: http.MethodGet,
+	}
+
+	if filter == nil {
+		request.Filter = filter
+	}
+
+	return c.getRecords(request)
+
+}
+
+func (c *Client) getRecords(r Request) (json.RawMessage, error) {
+	return c.httpRequest(r)
 }
 
 func (c *Client) CreateRecord(document, table string, r io.Reader) (json.RawMessage, error) {
