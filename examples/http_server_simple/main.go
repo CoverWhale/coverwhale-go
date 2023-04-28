@@ -3,11 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
@@ -57,18 +53,18 @@ func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
 			h.ServeHTTP(w, r)
 		})
 	}
-
 }
 
 func main() {
 	ctx := context.Background()
+
 	app, err := newrelic.NewApplication(
 		newrelic.ConfigAppName("testing"),
 		newrelic.ConfigFromEnvironment(),
 		newrelic.ConfigAppLogForwardingEnabled(true),
 	)
 	if err != nil {
-		log.Fatal(err)
+		logging.Fatal(err)
 	}
 
 	s := cwhttp.NewHTTPServer(
@@ -80,19 +76,5 @@ func main() {
 
 	errChan := make(chan error, 1)
 	go s.Serve(errChan)
-
-	go func() {
-		serverErr := <-errChan
-		if serverErr != nil {
-			s.Logger.Errorf("error starting server: %v", serverErr)
-			s.ShutdownServer(ctx)
-		}
-	}()
-
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	sig := <-sigTerm
-	s.Logger.Infof("received signal: %s", sig)
-	s.ShutdownServer(ctx)
+	s.AutoHandleErrors(ctx, errChan)
 }
