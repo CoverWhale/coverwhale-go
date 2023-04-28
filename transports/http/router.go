@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/CoverWhale/coverwhale-go/logging"
@@ -12,9 +15,7 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
-var (
-	ErrInternalError = fmt.Errorf("internal server error")
-)
+var ErrInternalError = fmt.Errorf("internal server error")
 
 // ServerOption is a functional option to modify the server
 type ServerOption func(*Server)
@@ -182,6 +183,27 @@ func (s *Server) Serve(errChan chan<- error) {
 	if err := s.apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		errChan <- err
 	}
+}
+
+// AutoHandleErrors is a convenience that should be called after starting the server.
+// It will automatically safely stop the server if a signal is received. This breaks
+// the normal pattern of letting the caller handle fatal errors, which is why this is a convenience
+// function that's able to be called separately.
+func (s *Server) AutoHandleErrors(ctx context.Context, errChan <-chan error) {
+	go func() {
+		serverErr := <-errChan
+		if serverErr != nil {
+			s.Logger.Errorf("error starting server: %v", serverErr)
+			s.ShutdownServer(ctx)
+		}
+	}()
+
+	sigTerm := make(chan os.Signal, 1)
+	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	sig := <-sigTerm
+	s.Logger.Infof("received signal: %s", sig)
+	s.ShutdownServer(ctx)
 }
 
 func (s *Server) ShutdownServer(ctx context.Context) {
