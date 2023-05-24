@@ -11,8 +11,12 @@ import (
 	"time"
 
 	"github.com/CoverWhale/coverwhale-go/logging"
+	"github.com/CoverWhale/coverwhale-go/metrics"
+	cwmiddleware "github.com/CoverWhale/coverwhale-go/transports/http/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var ErrInternalError = fmt.Errorf("internal server error")
@@ -39,6 +43,7 @@ type Server struct {
 	Logger    *logging.Logger
 	Router    *chi.Mux
 	NewRelic  *newrelic.Application
+	Exporter  *metrics.Exporter
 }
 
 // Route contains the information needed for an HTTP handler
@@ -57,8 +62,9 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 	r := chi.NewRouter()
 
 	s := &Server{
-		Logger: logging.NewLogger(),
-		Router: r,
+		Logger:   logging.NewLogger(),
+		Router:   r,
+		Exporter: metrics.NewExporter(),
 		apiServer: &http.Server{
 			Addr:         ":8080",
 			ReadTimeout:  10 * time.Second,
@@ -73,6 +79,8 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 
 	s.getHealth()
 	s.apiServer.Handler = r
+
+	s.Router.Method("GET", "/metrics", promhttp.Handler())
 
 	return s
 }
@@ -150,35 +158,31 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
 	subRouter := chi.NewRouter()
+	counter := metrics.NewCounterVec("http_requests", "HTTP requests by status, path, and method", []string{"code", "method", "path"})
+	hist := metrics.NewHistogramVec("http_request_latency", "HTTP latency by status, path, and method", []string{"code", "method", "path"})
+
 	// wrap subrouter to catch all middleware and total metrics for the subrouter
-	if s.NewRelic != nil {
-		s.Router.Mount(newrelic.WrapHandle(s.NewRelic, prefix, subRouter))
-	} else {
-		s.Router.Mount(prefix, subRouter)
-	}
+	s.Router.Mount(prefix, cwmiddleware.CodeStats(subRouter, counter, hist))
+
+	subRouter.Use(cwmiddleware.RequestID)
 
 	for _, m := range middleware {
 		subRouter.Use(m)
-	}
-
-	if s.NewRelic != nil {
-		for _, v := range routes {
-			// wrap each handler specifically for more granular metrics
-			_, handler := newrelic.WrapHandle(s.NewRelic, fmt.Sprintf("%s%s", prefix, v.Path), v.Handler)
-			subRouter.Method(v.Method, v.Path, handler)
-		}
-		return s
 	}
 
 	for _, v := range routes {
 		subRouter.Method(v.Method, v.Path, v.Handler)
 	}
 
+	s.Exporter.Metrics = append(s.Exporter.Metrics, counter, hist)
+
 	return s
 }
 
 // Serve starts the http.Server
 func (s *Server) Serve(errChan chan<- error) {
+	prometheus.MustRegister(s.Exporter.Metrics...)
+
 	s.Logger.Infof("starting HTTP server on %s", s.apiServer.Addr)
 	if err := s.apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		errChan <- err

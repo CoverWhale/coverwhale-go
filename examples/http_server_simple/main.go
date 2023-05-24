@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 func getRoutes(l *logging.Logger) []cwhttp.Route {
@@ -35,7 +36,15 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 		return cwhttp.NewClientError(fmt.Errorf("uh oh something is wrong"), 400)
 	}
 
-	w.Write([]byte("this works!"))
+	rand.Seed(time.Now().UnixNano())
+
+	i := rand.Intn(400-90+1) + 90
+	sleep := time.Duration(i) * time.Millisecond
+	time.Sleep(sleep)
+
+	resp := fmt.Sprintf("this works and took %dms\n", sleep.Milliseconds())
+
+	w.Write([]byte(resp))
 	return nil
 }
 
@@ -58,18 +67,8 @@ func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
 func main() {
 	ctx := context.Background()
 
-	app, err := newrelic.NewApplication(
-		newrelic.ConfigAppName("testing"),
-		newrelic.ConfigFromEnvironment(),
-		newrelic.ConfigAppLogForwardingEnabled(true),
-	)
-	if err != nil {
-		logging.Fatal(err)
-	}
-
 	s := cwhttp.NewHTTPServer(
-		cwhttp.SetServerPort(9090),
-		cwhttp.SetNewRelicApp(app),
+		cwhttp.SetServerPort(7070),
 	)
 
 	s.RegisterSubRouter("/api/v1", getRoutes(s.Logger), exampleMiddleware(s.Logger))
