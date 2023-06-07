@@ -1,7 +1,18 @@
 package metrics
 
 import (
+	"context"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Exporter struct {
@@ -33,4 +44,35 @@ func NewHistogramVec(name, help string, labels []string) *prometheus.HistogramVe
 		},
 		labels,
 	)
+}
+
+func NewOTLPExporter(ctx context.Context, endpoint string, opts ...otlptracehttp.Option) (*otlptrace.Exporter, error) {
+	opts = append(opts, otlptracehttp.WithEndpoint(endpoint))
+	c := otlptracehttp.NewClient(opts...)
+	return otlptrace.New(ctx, c)
+}
+
+func RegisterGlobalOTLPProvider(e *otlptrace.Exporter, serviceName, version string) (*tracesdk.TracerProvider, error) {
+	resource := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(serviceName),
+		semconv.ServiceVersionKey.String(version),
+		attribute.String("environment", "dev"),
+	)
+
+	sampler := tracesdk.AlwaysSample()
+	tracerProvider := tracesdk.NewTracerProvider(
+		tracesdk.WithSampler(sampler),
+		tracesdk.WithBatcher(e),
+		tracesdk.WithResource(resource),
+	)
+
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	return tracerProvider, nil
+}
+
+func NewTracer(ctx context.Context, name string) (context.Context, trace.Span) {
+	return otel.Tracer("github.com/CoverWhale/coverwhale-go/metrics").Start(ctx, name)
 }

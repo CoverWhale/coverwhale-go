@@ -17,6 +17,8 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 var ErrInternalError = fmt.Errorf("internal server error")
@@ -39,11 +41,13 @@ type ErrHandler struct {
 
 // Server holds the http.Server, a logger, and the router to attach to the http.Server
 type Server struct {
-	apiServer *http.Server
-	Logger    *logging.Logger
-	Router    *chi.Mux
-	NewRelic  *newrelic.Application
-	Exporter  *metrics.Exporter
+	apiServer      *http.Server
+	Logger         *logging.Logger
+	Router         *chi.Mux
+	NewRelic       *newrelic.Application
+	Exporter       *metrics.Exporter
+	traceShutdown  func(context.Context) error
+	TracerProvider *trace.TracerProvider
 }
 
 // Route contains the information needed for an HTTP handler
@@ -128,11 +132,9 @@ func SetIdleTimeout(t int) ServerOption {
 	}
 }
 
-func SetNewRelicApp(a *newrelic.Application) ServerOption {
+func SetTracerProvider(t *trace.TracerProvider) ServerOption {
 	return func(s *Server) {
-		if a != nil {
-			s.NewRelic = a
-		}
+		s.TracerProvider = t
 	}
 }
 
@@ -171,7 +173,12 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 	}
 
 	for _, v := range routes {
-		subRouter.Method(v.Method, v.Path, v.Handler)
+		if s.traceShutdown != nil {
+			m := fmt.Sprintf("%v:%v", v.Path, v.Method)
+			subRouter.Method(v.Method, v.Path, otelhttp.NewHandler(v.Handler, m))
+		} else {
+			subRouter.Method(v.Method, v.Path, v.Handler)
+		}
 	}
 
 	s.Exporter.Metrics = append(s.Exporter.Metrics, counter, hist)
@@ -215,9 +222,14 @@ func (s *Server) ShutdownServer(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	if err := s.TracerProvider.Shutdown(ctx); err != nil {
+		s.Logger.Errorf("error stopping tracing: %v\n", err)
+	}
+
 	if err := s.apiServer.Shutdown(ctx); err != nil {
-		s.Logger.Errorf("error shutting down server: %v", err)
+		s.Logger.Errorf("error shutting down server: %v\n", err)
 	}
 
 	s.Logger.Info("server stopped")
+	os.Exit(1)
 }
