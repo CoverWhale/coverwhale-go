@@ -14,7 +14,6 @@ import (
 	"github.com/CoverWhale/coverwhale-go/metrics"
 	cwmiddleware "github.com/CoverWhale/coverwhale-go/transports/http/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -44,7 +43,6 @@ type Server struct {
 	apiServer      *http.Server
 	Logger         *logging.Logger
 	Router         *chi.Mux
-	NewRelic       *newrelic.Application
 	Exporter       *metrics.Exporter
 	traceShutdown  func(context.Context) error
 	TracerProvider *trace.TracerProvider
@@ -96,11 +94,6 @@ func HandleWithContext[T any](h func(http.ResponseWriter, *http.Request, T), ctx
 }
 
 func (s *Server) getHealth() {
-	if s.NewRelic != nil {
-		s.Router.Get(newrelic.WrapHandleFunc(s.NewRelic, "/healthz", healthz))
-		return
-	}
-
 	s.Router.Get("/healthz", healthz)
 }
 
