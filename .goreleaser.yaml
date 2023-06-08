@@ -5,8 +5,6 @@ project_name: cwgoctl
 
 builds:
   - ldflags: "-extldflags= -w -X 'github.com/CoverWhale/coverwhale-go/cmd.Version={{.Tag}}'"
-    flags:
-      - -mod=vendor
     env:
       - "CGO_ENABLED=0"
       - "GO111MODULE=on"
