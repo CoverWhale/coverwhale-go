@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/CoverWhale/coverwhale-go/cmd/tpl"
@@ -152,7 +153,10 @@ func (s *Server) createOrPrintFile(n string, b []byte) error {
 }
 
 func (s *Server) handleOutput(w io.Writer, b []byte) error {
-	temp := template.Must(template.New("file").Parse(string(b)))
+	fmap := template.FuncMap{
+		"ToUpper": strings.ToUpper,
+	}
+	temp := template.Must(template.New("file").Funcs(fmap).Parse(string(b)))
 	if err := temp.Execute(w, s); err != nil {
 		return fmt.Errorf("error executing template: %s", err)
 	}

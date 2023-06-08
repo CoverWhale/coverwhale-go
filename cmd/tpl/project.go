@@ -40,7 +40,6 @@ import (
     {{ if not .DisableTelemetry -}}
     "github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/attribute"
-    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
     {{- end }}
 )
 
@@ -402,7 +401,10 @@ func printDeployment() (string, error) {
     
     c := k8s.NewContainer(viper.GetString("name"),
         k8s.ContainerImage(image),
+        k8s.ContainerPort("http", viper.GetInt("port")),
         k8s.ContainerArgs([]string{"server", "start"}),
+        // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
+        k8s.ContainerEnvVar("{{ .Name | ToUpper }}_PORT", fmt.Sprintf("%d", viper.GetInt("port"))),
         k8s.ContainerLivenessProbeHTTP(probe),
     )
     
@@ -497,78 +499,81 @@ GOARCH=$(shell go env GOARCH)
 all: build
 
 deps: ## get dependencies
-    go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+{{"\t"}}go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
 lint: deps ## Lint the files
-    go vet
-    gocyclo -over 10 -ignore "generated" ./
+{{"\t"}}go vet
+{{"\t"}}gocyclo -over 10 -ignore "generated" ./
 
 test: lint ## Run unittests
-    go test -v ./...
+{{"\t"}}go test -v ./...
 
 coverage: ## create test coverage report
-    go test -cover ./...
-    go test ./... -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
+{{"\t"}}go test -cover ./...
+{{"\t"}}go test ./... -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
 
 build: ## General build command for all build targets
-    CGO_ENABLED=0 go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl-$(GOOS)
+{{"\t"}}CGO_ENABLED=0 go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl-$(GOOS)
 
 linux: ## Build linux binary
-    GOOS=linux make build
+{{"\t"}}GOOS=linux make build
 
 windows: ## Build windows binary
-    GOOS=windows make build
+{{"\t"}}GOOS=windows make build
 
 mac: ## Build mac binary
-    GOOS=darwin make build
+{{"\t"}}GOOS=darwin make build
 
-{{ .Name }}ctl: ## Builds the binary on the current platform
-    go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
+tidy: ## Pull in dependencies
+{{"\t"}}go mod tidy && go mod vendor
+
+{{ .Name }}ctl: tidy ## Builds the binary on the current platform
+{{"\t"}}go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
 
 docs: ## Builds the cli documentation
-    ./{{ .Name }}ctl docs
+{{"\t"}}./{{ .Name }}ctl docs
 
 docker-local: ## Builds the container image and pushes to the local k8s registry
-    docker build -t localhost:50000/{{ .Name }}:latest .
-    docker push localhost:50000/{{ .Name }}:latest
+{{"\t"}}docker build -t localhost:50000/{{ .Name }}:latest .
+{{"\t"}}docker push localhost:50000/{{ .Name }}:latest
 
 docker-delete: ## Deletes the local docker image
-    docker image rm localhost:50000/{{ .Name }}:latest
+{{"\t"}}docker image rm localhost:50000/{{ .Name }}:latest
 
 update-local: docker-local ## Builds the container image and pushes to registry, rolls out the new container into the cluster
-    kubectl rollout restart deployment/{{ .Name }}
+{{"\t"}}kubectl rollout restart deployment/{{ .Name }}
 
-deploy-local: k8s-up {{ .Name }}ctl docker-local dgraph ## Creates a local k8s cluster, builds a docker image of {{ .Name }}, and pushes to local registry
-    ./{{ .Name }}ctl deploy manual | kubectl apply -f -
-    kubectl wait pods -l app={{ .Name }} --for condition=Ready --timeout=30s
+deploy-local: k8s-up {{ .Name }}ctl docker-local ## Creates a local k8s cluster, builds a docker image of {{ .Name }}, and pushes to local registry
+{{"\t"}}./{{ .Name }}ctl deploy manual | kubectl apply -f -
+{{"\t"}}kubectl wait pods -l app={{ .Name }} --for condition=Ready --timeout=30s
 
 generate-yaml: {{ .Name }}ctl
-    mkdir -p deployments/{dev,prod}
-    ./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class alb --ingress-annotations $(ANNOTATIONS) --ingress-tls --namespace prime \
+{{"\t"}}mkdir -p deployments/{dev,prod}
+{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class alb --ingress-annotations $(ANNOTATIONS) --ingress-tls --namespace prime \
         --registry  005364446802.dkr.ecr.us-east-1.amazonaws.com --service-name prime-{{ .Name }}-$(ENVIRONMENT) \
         --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
 
 generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
-    ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.prime.coverwhale.dev TAG=latest ANNOTATIONS="alb.ingress.kubernetes.io/group.name"="dev-apps-internal","alb.ingress.kubernetes.io/scheme"="internal","alb.ingress.kubernetes.io/target-type"="ip","alb.ingress.kubernetes.io/certificate-arn"="arn:aws:acm:us-east-1:005364446802:certificate/6e4aca2c-7087-4625-8ee3-49c8dfc29f5b" make generate-yaml
+{{"\t"}}ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.prime.coverwhale.dev TAG=latest ANNOTATIONS="alb.ingress.kubernetes.io/group.name"="dev-apps-internal","alb.ingress.kubernetes.io/scheme"="internal","alb.ingress.kubernetes.io/target-type"="ip","alb.ingress.kubernetes.io/certificate-arn"="arn:aws:acm:us-east-1:005364446802:certificate/6e4aca2c-7087-4625-8ee3-49c8dfc29f5b" make generate-yaml
 
 generate-prod: {{ .Name }}ctl ## Generate prod environment yaml for Argo
-    ENVIRONMENT=prod INGRESS={{ .Name }}.prime.coverwhale.com TAG=$(VERSION) make generate-yaml
+{{"\t"}}ENVIRONMENT=prod INGRESS={{ .Name }}.prime.coverwhale.com TAG=$(VERSION) make generate-yaml
 
 k8s-up: ## Creates a local kubernetes cluster with a registry
-    k3d registry create {{ .Name }}-registry --port 50000
-    k3d cluster create {{ .Name }} --registry-use k3d-{{ .Name }}-registry:50000 --servers 3 -p "8080:80@loadbalancer"
+{{"\t"}}k3d registry create {{ .Name }}-registry --port 50000
+{{"\t"}}k3d cluster create {{ .Name }} --registry-use k3d-{{ .Name }}-registry:50000 --servers 3 -p "8080:80@loadbalancer"
 
 k8s-down: ## Destroys the k8s cluster and registry
-    k3d registry delete {{ .Name }}-registry
-    k3d cluster delete {{ .Name }}
+{{"\t"}}k3d registry delete {{ .Name }}-registry
+{{"\t"}}k3d cluster delete {{ .Name }}
 
 clean: ## Remove previous build
-    git clean -fd
-    git clean -fx
-    git reset --hard
+{{"\t"}}git clean -fd
+{{"\t"}}git clean -fx
+{{"\t"}}git reset --hard
 
 help: ## Display this help screen
-    @grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+{{"\t"}}@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 `)
 }
 
