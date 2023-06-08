@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,30 +9,12 @@ import (
 	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/newrelic/go-agent/v3/newrelic"
 )
-
-func newRelic(appName string) (*newrelic.Application, error) {
-	_, ok := os.LookupEnv("NEW_RELIC_LICENSE_KEY")
-	if !ok {
-		return nil, nil
-	}
-
-	return newrelic.NewApplication(
-		newrelic.ConfigAppName(appName),
-		newrelic.ConfigFromEnvironment(),
-		newrelic.ConfigAppLogForwardingEnabled(true),
-	)
-}
 
 func main() {
 	ctx := context.Background()
 	ds := NewInMemoryStore()
 	l := logging.NewLogger()
-	nr, err := newRelic("testing")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	h := Application{
 		ProductManager: ds,
@@ -42,7 +23,6 @@ func main() {
 
 	cwServer := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
-		cwhttp.SetNewRelicApp(nr),
 	).RegisterSubRouter("/api/v1", h.buildRoutes(l), middleware.Logger, middleware.Throttle(1))
 
 	h.Server = cwServer
