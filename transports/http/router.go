@@ -94,6 +94,10 @@ func HandleWithContext[T any](h func(http.ResponseWriter, *http.Request, T), ctx
 }
 
 func (s *Server) getHealth() {
+	if s.TracerProvider != nil {
+		s.Router.Mount("/healthz", otelhttp.NewHandler(http.HandlerFunc(healthz), "healthz:GET"))
+		return
+	}
 	s.Router.Get("/healthz", healthz)
 }
 
