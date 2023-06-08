@@ -219,8 +219,10 @@ func (s *Server) ShutdownServer(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if err := s.TracerProvider.Shutdown(ctx); err != nil {
-		s.Logger.Errorf("error stopping tracing: %v\n", err)
+	if s.TracerProvider != nil {
+		if err := s.TracerProvider.Shutdown(ctx); err != nil {
+			s.Logger.Errorf("error stopping tracing: %v\n", err)
+		}
 	}
 
 	if err := s.apiServer.Shutdown(ctx); err != nil {
