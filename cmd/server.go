@@ -26,11 +26,19 @@ func init() {
 	newCmd.AddCommand(serverCmd)
 	serverCmd.Flags().Bool("disable-telemetry", false, "Enable opentelemetry integration")
 	viper.BindPFlag("server.disable_telemetry", serverCmd.Flags().Lookup("disable-telemetry"))
-	serverCmd.Flags().StringP("name", "n", "coverwhale-app", "Application name")
+	serverCmd.Flags().StringP("name", "n", "", "Application name")
+	serverCmd.MarkFlagRequired("name")
 	viper.BindPFlag("server.name", serverCmd.Flags().Lookup("name"))
 	serverCmd.Flags().Bool("disable-deployment", false, "Disables Kubernetes deployment generation")
 	viper.BindPFlag("server.disable_deployment", serverCmd.Flags().Lookup("disable-deployment"))
 }
+
+type Delims struct {
+	First  string
+	Second string
+}
+
+var dd Delims
 
 func server(cmd *cobra.Command, args []string) error {
 	mod := modInfo()
@@ -40,7 +48,7 @@ func server(cmd *cobra.Command, args []string) error {
 	cfg.Server.Module = mod
 
 	if !cfg.Debug {
-		dirs := []string{"./cmd", "./server"}
+		dirs := []string{"./cmd", "./server", "./.github/workflows"}
 		for _, v := range dirs {
 			if _, err := os.Stat(v); os.IsNotExist(err) {
 				if err := os.MkdirAll(v, 0755); err != nil {
@@ -93,53 +101,81 @@ func server(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if err := cfg.Server.createGoReleaser(); err != nil {
+		return err
+	}
+
+	if err := cfg.Server.createTestWorkflow(); err != nil {
+		return err
+	}
+
+	if err := cfg.Server.createReleaseWorkflow(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (s *Server) createMain() error {
-	return cfg.Server.createOrPrintFile("main.go", tpl.Main())
+	return cfg.Server.createOrPrintFile("main.go", tpl.Main(), dd)
 }
 
 func (s *Server) createRoot() error {
-	return cfg.Server.createOrPrintFile("cmd/root.go", tpl.Root())
+	return cfg.Server.createOrPrintFile("cmd/root.go", tpl.Root(), dd)
 }
 
 func (s *Server) createServer() error {
-	return cfg.Server.createOrPrintFile("cmd/server.go", tpl.Server())
+	return cfg.Server.createOrPrintFile("cmd/server.go", tpl.Server(), dd)
 }
 
 func (s *Server) createServerStart() error {
-	return cfg.Server.createOrPrintFile("cmd/start.go", tpl.ServerStart())
+	return cfg.Server.createOrPrintFile("cmd/start.go", tpl.ServerStart(), dd)
 }
 
 func (s *Server) createServerPackage() error {
-	return cfg.Server.createOrPrintFile("server/server.go", tpl.ServerPackage())
+	return cfg.Server.createOrPrintFile("server/server.go", tpl.ServerPackage(), dd)
 }
 
 func (s *Server) createVersion() error {
-	return cfg.Server.createOrPrintFile("cmd/version.go", tpl.Version())
+	return cfg.Server.createOrPrintFile("cmd/version.go", tpl.Version(), dd)
 }
 
 func (s *Server) createDeploy() error {
-	return cfg.Server.createOrPrintFile("cmd/deploy.go", tpl.Deploy())
+	return cfg.Server.createOrPrintFile("cmd/deploy.go", tpl.Deploy(), dd)
 }
 
 func (s *Server) createManual() error {
-	return cfg.Server.createOrPrintFile("cmd/manual.go", tpl.Manual())
+	return cfg.Server.createOrPrintFile("cmd/manual.go", tpl.Manual(), dd)
 }
 
 func (s *Server) createMakefile() error {
-	return cfg.Server.createOrPrintFile("Makefile", tpl.Makefile())
+	return cfg.Server.createOrPrintFile("Makefile", tpl.Makefile(), dd)
 }
 
 func (s *Server) createDockerfile() error {
-	return cfg.Server.createOrPrintFile("Dockerfile", tpl.Dockerfile())
+	return cfg.Server.createOrPrintFile("Dockerfile", tpl.Dockerfile(), dd)
 }
 
-func (s *Server) createOrPrintFile(n string, b []byte) error {
+func (s *Server) createGoReleaser() error {
+	return cfg.Server.createOrPrintFile(".goreleaser.yaml", tpl.GoReleaser(), Delims{First: "[%", Second: "%]"})
+}
+
+func (s *Server) createTestWorkflow() error {
+	return cfg.Server.createOrPrintFile(".github/workflows/test.yaml", tpl.TestWorkflow(), Delims{First: "[%", Second: "%]"})
+}
+
+func (s *Server) createReleaseWorkflow() error {
+	return cfg.Server.createOrPrintFile(".github/workflows/release.yaml", tpl.ReleaseWorkflow(), Delims{First: "[%", Second: "%]"})
+}
+
+func (s *Server) createOrPrintFile(n string, b []byte, d Delims) error {
+	if d.First == "" && d.Second == "" {
+		d.First = "{{"
+		d.Second = "}}"
+	}
 
 	if cfg.Debug {
-		return s.handleOutput(os.Stdout, b)
+		return s.handleOutput(os.Stdout, b, d)
 	}
 
 	f, err := os.Create(n)
@@ -149,14 +185,14 @@ func (s *Server) createOrPrintFile(n string, b []byte) error {
 
 	defer f.Close()
 
-	return s.handleOutput(f, b)
+	return s.handleOutput(f, b, d)
 }
 
-func (s *Server) handleOutput(w io.Writer, b []byte) error {
+func (s *Server) handleOutput(w io.Writer, b []byte, d Delims) error {
 	fmap := template.FuncMap{
 		"ToUpper": strings.ToUpper,
 	}
-	temp := template.Must(template.New("file").Funcs(fmap).Parse(string(b)))
+	temp := template.Must(template.New("file").Delims(d.First, d.Second).Funcs(fmap).Parse(string(b)))
 	if err := temp.Execute(w, s); err != nil {
 		return fmt.Errorf("error executing template: %s", err)
 	}
