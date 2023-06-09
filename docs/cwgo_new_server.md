@@ -16,7 +16,7 @@ cwgo new server [flags]
       --disable-deployment   Disables Kubernetes deployment generation
       --disable-telemetry    Enable opentelemetry integration
   -h, --help                 help for server
-  -n, --name string          Application name (default "coverwhale-app")
+  -n, --name string          Application name
 ```
 
 ### Options inherited from parent commands
