@@ -596,3 +596,119 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["./{{ .Name }}ctl"]    
 `)
 }
+
+func GoReleaser() []byte {
+	return []byte(`
+env:
+  - IMAGE_TAG={{.Tag}}
+
+
+project_name: [% .Name %]ctl
+
+builds:
+  - ldflags: "-extldflags= -w -X '[% .Module %]/cmd.Version={{.Tag}}'"
+    flags:
+      - -mod=vendor
+    env:
+      - "CGO_ENABLED=0"
+      - "GO111MODULE=on"
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+source:
+  enabled: true
+`)
+}
+
+func TestWorkflow() []byte {
+	return []byte(`
+name: test
+on: [push, workflow_call]
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: [ 1.19.x ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Test
+        run: make test
+      - name: Coverage
+        run: make coverage
+      - name: store coverage
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-coverage
+          path: ./coverage.html 
+`)
+}
+
+func ReleaseWorkflow() []byte {
+	return []byte(`
+name: release and deploy
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - 'deployments/**'
+  pull_request:
+    types: [opened, reopened, edited]
+    paths:
+      - '**.go'
+
+env:
+  DOCKER_REPO: "${{ secrets.ECR_REGISTRY }}"/[% .Name %]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
+  release:
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::005364446802:role/GithubActionsPulumi
+          role-session-name: github-actions-pulumi
+          aws-region: ${{ secrets.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v1
+      - name: Build branch and push to ecr
+        run: |
+          docker build -t $DOCKER_REPO:${{github.sha}}-t $DOCKER_REPO:latest .
+          docker push -a $DOCKER_REPO
+        #use generated tag instead of latest
+      - run: make generate-dev TAG=${{github.sha}}
+      - run: make docs
+      - name: create manifests and update docs
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          git config --global user.name "${{ github.event.repository.name }} CI"
+          git config --global user.email "automations@coverwhale.com"
+          git add docs deployments
+          git commit -m "update docs and manifests"
+          git push
+`)
+}

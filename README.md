@@ -2,6 +2,37 @@
 
 This is somewhat of an opinionated set of packages for Go development. By no means is this going to be forced as the only way to write Go, but it's a good starting point for most things.
 
+## Code Generation
+
+The `cwgoctl` code generator will create an opinionated Go application for you. It will create a Makefile, Dockerfile, started cmd package, starter server package, goreleaser config, and github actions.
+
+### Pre-Reqs
+To use the targets in the Makefile you will need:
+1. [Go](https://go.dev/doc/install)
+2. [k3d](https://k3d.io/v5.4.6/#installation)
+3. [kubectl](https://kubernetes.io/docs/tasks/tools/)
+4. [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or regular Docker if on Linux)
+
+### Usage
+
+To use the utility simply follow these steps:
+
+1. `go mod init github.com/CoverWhale/myapp`
+
+2. Run `cwgoctl` with your options.  For example: `cwgoctl new server --name myapp`
+    > Cli documentation is [here](docs/cwgo.md)
+
+3. Run `make tidy`
+    > Pulls in all dependencies and vendors them
+
+4. Run `make deploy-local`
+    > Builds a local 3 node kubernetes cluster with registry using k3d and deploys your app to the cluster.
+
+5. You can hit your running example app at `myapp.127.0.0.1.nip.io:8080/api/v1/testing -H "Authorization: test"`
+
+6. Now you can modify the code. For example adding handlers or creating another subrouter in the `server` package.
+
+
 ## HTTP Server
 
 Examples are [here](examples/)
