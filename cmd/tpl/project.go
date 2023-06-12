@@ -334,8 +334,8 @@ func init() {
     viper.BindPFlag("ingress-class", deployCmd.PersistentFlags().Lookup("ingress-class"))
     deployCmd.PersistentFlags().Bool("insecure", false, "local insecure deployment")
     viper.BindPFlag("insecure", deployCmd.PersistentFlags().Lookup("insecure"))
-    deployCmd.Flags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
-	viper.BindPFlag("ingress-annotations", deployCmd.Flags().Lookup("ingress-annotations"))
+    deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
+	viper.BindPFlag("ingress-annotations", deployCmd.PersistentFlags().Lookup("ingress-annotations"))
 }
 `)
 }
@@ -495,6 +495,7 @@ GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
 VERSION := $$(git describe HEAD)
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
+GOPRIVATE=github.com/CoverWhale
 
 .PHONY: all build docker deps clean test coverage lint docker-local k8s-up k8s-down docker-delete docs update-local deploy-local
 
