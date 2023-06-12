@@ -536,6 +536,7 @@ tidy: ## Pull in dependencies
 docs: ## Builds the cli documentation
 {{"\t"}}./{{ .Name }}ctl docs
 
+{{ if not .DisableDeployment }}
 docker-local: ## Builds the container image and pushes to the local k8s registry
 {{"\t"}}docker build -t localhost:50000/{{ .Name }}:latest .
 {{"\t"}}docker push localhost:50000/{{ .Name }}:latest
@@ -569,6 +570,7 @@ k8s-up: ## Creates a local kubernetes cluster with a registry
 k8s-down: ## Destroys the k8s cluster and registry
 {{"\t"}}k3d registry delete {{ .Name }}-registry
 {{"\t"}}k3d cluster delete {{ .Name }}
+{{ end -}}
 
 clean: ## Remove previous build
 {{"\t"}}git clean -fd
