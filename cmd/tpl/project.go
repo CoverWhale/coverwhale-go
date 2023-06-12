@@ -334,6 +334,8 @@ func init() {
     viper.BindPFlag("ingress-class", deployCmd.PersistentFlags().Lookup("ingress-class"))
     deployCmd.PersistentFlags().Bool("insecure", false, "local insecure deployment")
     viper.BindPFlag("insecure", deployCmd.PersistentFlags().Lookup("insecure"))
+    deployCmd.Flags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
+	viper.BindPFlag("ingress-annotations", deployCmd.Flags().Lookup("ingress-annotations"))
 }
 `)
 }
