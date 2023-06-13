@@ -695,3 +695,9 @@ jobs:
           git push
 `)
 }
+
+func Gitignore() []byte {
+	return []byte(`{{ .Name }}ctl*
+cwgotctl*
+`)
+}

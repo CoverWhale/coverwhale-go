@@ -113,6 +113,10 @@ func server(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if err := cfg.Server.createGitignore(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -166,6 +170,10 @@ func (s *Server) createTestWorkflow() error {
 
 func (s *Server) createReleaseWorkflow() error {
 	return cfg.Server.createOrPrintFile(".github/workflows/release.yaml", tpl.ReleaseWorkflow(), Delims{First: "[%", Second: "%]"})
+}
+
+func (s *Server) createGitignore() error {
+	return cfg.Server.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
 }
 
 func (s *Server) createOrPrintFile(n string, b []byte, d Delims) error {
