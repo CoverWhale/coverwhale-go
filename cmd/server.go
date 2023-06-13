@@ -31,6 +31,8 @@ func init() {
 	viper.BindPFlag("server.name", serverCmd.Flags().Lookup("name"))
 	serverCmd.Flags().Bool("disable-deployment", false, "Disables Kubernetes deployment generation")
 	viper.BindPFlag("server.disable_deployment", serverCmd.Flags().Lookup("disable-deployment"))
+	serverCmd.PersistentFlags().String("metrics-url", "localhost:4318", "Endpoint for metrics exporter")
+	viper.BindPFlag("server.metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 }
 
 type Delims struct {

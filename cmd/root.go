@@ -26,8 +26,9 @@ type Config struct {
 type Server struct {
 	Name              string `mapstructure:"name"`
 	Module            string
-	DisableTelemetry  bool `mapstructure:"disable_telemetry"`
-	DisableDeployment bool `mapstructure:"disable_deployment"`
+	DisableTelemetry  bool   `mapstructure:"disable_telemetry"`
+	DisableDeployment bool   `mapstructure:"disable_deployment"`
+	MetricsUrl        string `mapstructure:"metrics_url"`
 }
 
 func Execute() {
