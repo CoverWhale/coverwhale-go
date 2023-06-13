@@ -1,8 +1,7 @@
 package tpl
 
 func Server() []byte {
-	return []byte(`
-package cmd
+	return []byte(`package cmd
 
 import (
     "github.com/spf13/cobra"
@@ -23,8 +22,7 @@ func init() {
 }
 
 func ServerPackage() []byte {
-	return []byte(`
-package server
+	return []byte(`package server
 
 import (
     {{ if not .DisableTelemetry -}}
@@ -126,8 +124,7 @@ func ExampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
 }
 
 func ServerStart() []byte {
-	return []byte(`
-package cmd 
+	return []byte(`package cmd 
 
 import (
     "context"
@@ -192,8 +189,7 @@ func start(cmd *cobra.Command, args []string ) error {
 }
 
 func Main() []byte {
-	return []byte(`
-package main
+	return []byte(`package main
 
 import "{{ .Module }}/cmd"
 
@@ -204,8 +200,7 @@ func main() {
 }
 
 func Root() []byte {
-	return []byte(`
-{{ $tick := "` + "`" + `" }}
+	return []byte(`{{ $tick := "` + "`" + `" -}}
 package cmd
 
 import (
@@ -275,8 +270,7 @@ func initConfig() {
 }
 
 func Version() []byte {
-	return []byte(`
-package cmd
+	return []byte(`package cmd
 
 import (
     "fmt"
@@ -301,8 +295,7 @@ func init() {
 }
 
 func Deploy() []byte {
-	return []byte(`
-package cmd
+	return []byte(`package cmd
 
 import (
     "github.com/spf13/cobra"
@@ -341,8 +334,7 @@ func init() {
 }
 
 func Manual() []byte {
-	return []byte(`
-{{ $tick := "` + "`" + `" }}
+	return []byte(`{{ $tick := "` + "`" + `" -}}
 package cmd
 
 import (
@@ -487,8 +479,7 @@ func printSecret() (string, error) {
 }
 
 func Makefile() []byte {
-	return []byte(`
-PROJECT_NAME := "{{ .Name }}"
+	return []byte(`PROJECT_NAME := "{{ .Name }}"
 PKG := "{{ .Module }}"
 PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
@@ -501,7 +492,7 @@ GOPRIVATE=github.com/CoverWhale
 
 all: build
 
-deps: ## get dependencies
+deps: ## Get dependencies
 {{"\t"}}go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
 lint: deps ## Lint the files
@@ -511,21 +502,12 @@ lint: deps ## Lint the files
 test: lint ## Run unittests
 {{"\t"}}go test -v ./...
 
-coverage: ## create test coverage report
+coverage: ## Create test coverage report
 {{"\t"}}go test -cover ./...
 {{"\t"}}go test ./... -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
 
-build: ## General build command for all build targets
-{{"\t"}}CGO_ENABLED=0 go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl-$(GOOS)
-
-linux: ## Build linux binary
-{{"\t"}}GOOS=linux make build
-
-windows: ## Build windows binary
-{{"\t"}}GOOS=windows make build
-
-mac: ## Build mac binary
-{{"\t"}}GOOS=darwin make build
+goreleaser: tidy ## Creates local multiarch releases with GoReleaser
+{{"\t"}}goreleaser release --snapshot --rm-dist
 
 tidy: ## Pull in dependencies
 {{"\t"}}go mod tidy && go mod vendor
@@ -583,8 +565,7 @@ help: ## Display this help screen
 }
 
 func Dockerfile() []byte {
-	return []byte(`
-FROM golang:alpine as builder
+	return []byte(`FROM golang:alpine as builder
 WORKDIR /app
 ENV IMAGE_TAG=dev
 RUN apk update && apk upgrade && apk add --no-cache ca-certificates git
@@ -603,8 +584,7 @@ ENTRYPOINT ["./{{ .Name }}ctl"]
 }
 
 func GoReleaser() []byte {
-	return []byte(`
-env:
+	return []byte(`env:
   - IMAGE_TAG={{.Tag}}
 
 
@@ -630,8 +610,7 @@ source:
 }
 
 func TestWorkflow() []byte {
-	return []byte(`
-name: test
+	return []byte(`name: test
 on: [push, workflow_call]
 jobs:
   test:
@@ -660,8 +639,7 @@ jobs:
 }
 
 func ReleaseWorkflow() []byte {
-	return []byte(`
-name: release and deploy
+	return []byte(`name: release and deploy
 on:
   push:
     branches:
