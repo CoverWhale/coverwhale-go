@@ -31,6 +31,8 @@ func init() {
 	viper.BindPFlag("server.name", serverCmd.Flags().Lookup("name"))
 	serverCmd.Flags().Bool("disable-deployment", false, "Disables Kubernetes deployment generation")
 	viper.BindPFlag("server.disable_deployment", serverCmd.Flags().Lookup("disable-deployment"))
+	serverCmd.PersistentFlags().String("metrics-url", "localhost:4318", "Endpoint for metrics exporter")
+	viper.BindPFlag("server.metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 }
 
 type Delims struct {
@@ -113,6 +115,10 @@ func server(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if err := cfg.Server.createGitignore(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -166,6 +172,10 @@ func (s *Server) createTestWorkflow() error {
 
 func (s *Server) createReleaseWorkflow() error {
 	return cfg.Server.createOrPrintFile(".github/workflows/release.yaml", tpl.ReleaseWorkflow(), Delims{First: "[%", Second: "%]"})
+}
+
+func (s *Server) createGitignore() error {
+	return cfg.Server.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
 }
 
 func (s *Server) createOrPrintFile(n string, b []byte, d Delims) error {

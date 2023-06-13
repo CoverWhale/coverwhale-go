@@ -158,7 +158,7 @@ func start(cmd *cobra.Command, args []string ) error {
 
     {{ if not .DisableTelemetry -}}
     // create new metrics exporter
-    exp, err := metrics.NewOTLPExporter(ctx, "localhost:4318", otlptracehttp.WithInsecure())
+    exp, err := metrics.NewOTLPExporter(ctx, {{ .MetricsUrl }}, otlptracehttp.WithInsecure())
     if err != nil {
         return err
     }
@@ -693,5 +693,11 @@ jobs:
           git add docs deployments
           git commit -m "update docs and manifests"
           git push
+`)
+}
+
+func Gitignore() []byte {
+	return []byte(`{{ .Name }}ctl*
+cwgotctl*
 `)
 }
