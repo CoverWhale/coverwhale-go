@@ -17,6 +17,8 @@ func init() {
     rootCmd.AddCommand(serverCmd)
     serverCmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
     viper.BindPFlag("port", serverCmd.PersistentFlags().Lookup("port"))
+    serverCmd.PersistentFlags().String("metrics-url", "localhost:4318", "Endpoint for metrics exporter")
+    viper.BindPFlag("metrics-url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 }
 `)
 }
@@ -158,7 +160,8 @@ func start(cmd *cobra.Command, args []string ) error {
 
     {{ if not .DisableTelemetry -}}
     // create new metrics exporter
-    exp, err := metrics.NewOTLPExporter(ctx, "localhost:4318", otlptracehttp.WithInsecure())
+    metricsUrl := viper.GetString("metrics-url")
+    exp, err := metrics.NewOTLPExporter(ctx, metricsUrl, otlptracehttp.WithInsecure())
     if err != nil {
         return err
     }
