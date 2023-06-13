@@ -17,7 +17,7 @@ func init() {
     rootCmd.AddCommand(serverCmd)
     serverCmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
     viper.BindPFlag("port", serverCmd.PersistentFlags().Lookup("port"))
-    serverCmd.PersistentFlags().String("metrics-url", {{ .MetricsUrl }}, "Endpoint for metrics exporter")
+    serverCmd.PersistentFlags().String("metrics-url", "{{ .MetricsUrl }}", "Endpoint for metrics exporter")
 	viper.BindPFlag("metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 }
 `)
