@@ -17,6 +17,8 @@ func init() {
     rootCmd.AddCommand(serverCmd)
     serverCmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
     viper.BindPFlag("port", serverCmd.PersistentFlags().Lookup("port"))
+    serverCmd.PersistentFlags().String("metrics-url", {{ .MetricsUrl }}, "Endpoint for metrics exporter")
+	viper.BindPFlag("metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 }
 `)
 }
@@ -158,7 +160,7 @@ func start(cmd *cobra.Command, args []string ) error {
 
     {{ if not .DisableTelemetry -}}
     // create new metrics exporter
-    exp, err := metrics.NewOTLPExporter(ctx, {{ .MetricsUrl }}, otlptracehttp.WithInsecure())
+    exp, err := metrics.NewOTLPExporter(ctx, viper.GetString("metrics_url"), otlptracehttp.WithInsecure())
     if err != nil {
         return err
     }
@@ -222,7 +224,8 @@ var rootCmd = &cobra.Command{
 var replacer = strings.NewReplacer("-", "_")
 
 type Config struct {
-    Port    int   {{ $tick }}mapstructure:"port"{{ $tick }}
+    Port        int     {{ $tick }}mapstructure:"port"{{ $tick }}
+    MetricsUrl  string  {{ $tick }}mapstructure:"metrics_url"{{ $tick }}
 }
 
 
