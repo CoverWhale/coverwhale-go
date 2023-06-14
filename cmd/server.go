@@ -33,6 +33,12 @@ func init() {
 	viper.BindPFlag("server.disable_deployment", serverCmd.Flags().Lookup("disable-deployment"))
 	serverCmd.PersistentFlags().String("metrics-url", "localhost:4318", "Endpoint for metrics exporter")
 	viper.BindPFlag("server.metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
+	serverCmd.PersistentFlags().Bool("enable-nats", false, "Enables NATS integration")
+	viper.BindPFlag("server.enable_nats", serverCmd.PersistentFlags().Lookup("enable-nats"))
+	serverCmd.PersistentFlags().String("nats-subject", "", "Subject(s) to listen on")
+	viper.BindPFlag("server.nats_subject", serverCmd.PersistentFlags().Lookup("nats-subject"))
+	serverCmd.PersistentFlags().String("nats-servers", "localhost:4222", "Nats server URLs")
+	viper.BindPFlag("server.nats_servers", serverCmd.PersistentFlags().Lookup("nats-servers"))
 }
 
 type Delims struct {
@@ -119,6 +125,12 @@ func server(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if cfg.Server.EnableNats {
+		if err := cfg.Server.createNats(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -176,6 +188,10 @@ func (s *Server) createReleaseWorkflow() error {
 
 func (s *Server) createGitignore() error {
 	return cfg.Server.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
+}
+
+func (s *Server) createNats() error {
+	return cfg.Server.createOrPrintFile("server/nats.go", tpl.Nats(), dd)
 }
 
 func (s *Server) createOrPrintFile(n string, b []byte, d Delims) error {

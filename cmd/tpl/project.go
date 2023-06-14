@@ -158,7 +158,7 @@ func start(cmd *cobra.Command, args []string ) error {
 
     {{ if not .DisableTelemetry -}}
     // create new metrics exporter
-    exp, err := metrics.NewOTLPExporter(ctx, {{ .MetricsUrl }}, otlptracehttp.WithInsecure())
+    exp, err := metrics.NewOTLPExporter(ctx, "{{ .MetricsUrl }}", otlptracehttp.WithInsecure())
     if err != nil {
         return err
     }
@@ -176,6 +176,15 @@ func start(cmd *cobra.Command, args []string ) error {
         cwhttp.SetTracerProvider(tp),
     {{- end }}
     )
+
+    {{ if .EnableNats }}
+    backend := server.NewNatsBackend("{{ .NatsServers }}")
+    if err := backend.Connect(); err != nil {
+        return err
+    }
+
+    backend.Watch("{{ .NatsSubject }}")
+    {{ end }}
 
     s.RegisterSubRouter("/api/v1", server.GetRoutes(s.Logger), server.ExampleMiddleware(s.Logger))
 
