@@ -29,6 +29,9 @@ type Server struct {
 	DisableTelemetry  bool   `mapstructure:"disable_telemetry"`
 	DisableDeployment bool   `mapstructure:"disable_deployment"`
 	MetricsUrl        string `mapstructure:"metrics_url"`
+	EnableNats        bool   `mapstructure:"enable_nats"`
+	NatsSubject       string `mapstructure:"nats_subject"`
+	NatsServers       string `mapstructure:"nats_servers"`
 }
 
 func Execute() {
