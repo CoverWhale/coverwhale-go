@@ -32,6 +32,7 @@ type Server struct {
 	EnableNats        bool   `mapstructure:"enable_nats"`
 	NatsSubject       string `mapstructure:"nats_subject"`
 	NatsServers       string `mapstructure:"nats_servers"`
+	EnableGraphql     bool   `mapstructure:"enable_graphql"`
 }
 
 func Execute() {
