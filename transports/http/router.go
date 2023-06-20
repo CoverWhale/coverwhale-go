@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -157,8 +158,10 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
 	subRouter := chi.NewRouter()
-	counter := metrics.NewCounterVec("http_requests", "HTTP requests by status, path, and method", []string{"code", "method", "path"})
-	hist := metrics.NewHistogramVec("http_request_latency", "HTTP latency by status, path, and method", []string{"code", "method", "path"})
+	// we need to register each vector with a unique name, for now its a combination of the prefix and route path
+	name := fmt.Sprintf("%s_%s", strings.ReplaceAll(prefix, "/", "_"), strings.ReplaceAll(routes[0].Path, "/", "_"))
+	counter := metrics.NewCounterVec(fmt.Sprintf("http_requests_%s", name), "HTTP requests by status, path, and method", []string{"code", "method", "path"})
+	hist := metrics.NewHistogramVec(fmt.Sprintf("http_request_latency_%s", name), "HTTP latency by status, path, and method", []string{"code", "method", "path"})
 
 	// wrap subrouter to catch all middleware and total metrics for the subrouter
 	s.Router.Mount(prefix, cwmiddleware.CodeStats(subRouter, counter, hist))
