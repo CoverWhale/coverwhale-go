@@ -1,126 +1,127 @@
 package tpl
 
+// Because of the yaml, this file is indented using Spaces
 func Client() []byte {
 	return []byte(`{{ $tick := "` + "`" + `" -}}
 package graph
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
 )
 
 type ClientOption func(*GraphQLClient)
 type GraphQLClient struct {
-	client *http.Client
-	URL    string
+    client *http.Client
+    URL    string
 }
 
 type gqlResponse struct {
-	Errors []gqlError {{ $tick }}json:"errors"{{ $tick }}
+    Errors []gqlError {{ $tick }}json:"errors"{{ $tick }}
 }
 type gqlError struct {
-	Message string {{ $tick }}json:"message"{{ $tick }}
+    Message string {{ $tick }}json:"message"{{ $tick }}
 }
 
 type Query struct {
-	Query     string {{ $tick }}json:"query"{{ $tick }}
-	Variables {{ $tick }}json:"variables"{{ $tick }}
+    Query     string {{ $tick }}json:"query"{{ $tick }}
+    Variables {{ $tick }}json:"variables"{{ $tick }}
 }
 
 type Variables struct {
-	Data json.RawMessage {{ $tick }}json:"data"{{ $tick }}
+    Data json.RawMessage {{ $tick }}json:"data"{{ $tick }}
 }
 
 // create a new gql client
 func NewGraphQLClient(url string, opts ...ClientOption) *GraphQLClient {
-	c := &GraphQLClient{
-		client: http.DefaultClient,
-		URL:    url,
-	}
+    c := &GraphQLClient{
+        client: http.DefaultClient,
+        URL:    url,
+    }
 
-	for _, opt := range opts {
-		opt(c)
-	}
+    for _, opt := range opts {
+        opt(c)
+    }
 
-	return c
+    return c
 }
 
 // in case you want to use a bespoke http client
 func SetHTTPClient(client *http.Client) ClientOption {
-	return func(c *GraphQLClient) {
-		c.client = client
-	}
+    return func(c *GraphQLClient) {
+        c.client = client
+    }
 }
 
 // http POST call
 func (g *GraphQLClient) newPostRequest(url string, data []byte) ([]byte, error) {
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
+    req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+    if err != nil {
+        return nil, err
+    }
 
-	req.Header.Add("Content-Type", "application/json")
+    req.Header.Add("Content-Type", "application/json")
 
-	resp, err := g.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
+    resp, err := g.client.Do(req)
+    if err != nil {
+        return nil, err
+    }
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, err
+    }
 
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("error: %v", string(body))
-	}
+    if resp.StatusCode != 200 {
+        return nil, fmt.Errorf("error: %v", string(body))
+    }
 
-	if err := handleGraphQLErrors(body); err != nil {
-		return nil, err
-	}
+    if err := handleGraphQLErrors(body); err != nil {
+        return nil, err
+    }
 
-	return body, nil
+    return body, nil
 }
 
 // handle the errors
 func handleGraphQLErrors(b []byte) error {
-	var g gqlResponse
-	if err := json.Unmarshal(b, &g); err != nil {
-		return err
-	}
+    var g gqlResponse
+    if err := json.Unmarshal(b, &g); err != nil {
+        return err
+    }
 
-	if g.Errors == nil {
-		return nil
-	}
+    if g.Errors == nil {
+        return nil
+    }
 
-	var errors error
-	for _, v := range g.Errors {
-		errors = fmt.Errorf("%w", fmt.Errorf("%s", v.Message))
-	}
+    var errors error
+    for _, v := range g.Errors {
+        errors = fmt.Errorf("%w", fmt.Errorf("%s", v.Message))
+    }
 
-	return errors
+    return errors
 }
 
 // GraphQL query
 func (g *GraphQLClient) query(query string, vars ...json.RawMessage) ([]byte, error) {
-	q := Query{
-		Query: query,
-	}
+    q := Query{
+        Query: query,
+    }
 
-	for _, v := range vars {
-		q.Variables = Variables{Data: v}
-	}
+    for _, v := range vars {
+        q.Variables = Variables{Data: v}
+    }
 
-	data, err := json.Marshal(q)
-	if err != nil {
-		return nil, err
-	}
+    data, err := json.Marshal(q)
+    if err != nil {
+        return nil, err
+    }
 
-	return g.newPostRequest(g.URL, data)
+    return g.newPostRequest(g.URL, data)
 }
 `)
 }
@@ -144,8 +145,8 @@ exec:
 
 # Where should any generated models go?
 model:
-  filename: graph/model/models_gen.go
-  package: model
+  filename: graph/models_gen.go
+  package: graph
 
 # Where should the resolver implementations go?
 resolver:
@@ -193,7 +194,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-#  - "github.com/CoverWhale/gql-test/graph/model"
+#  - "github.com/CoverWhale/{{ .Name }}/graph"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
@@ -217,32 +218,33 @@ models:
 
 func SchemaGraphqls() []byte {
 	return []byte(`# GraphQL schema example
+# GraphQL schema example
 #
 # https://gqlgen.com/getting-started/
 
-type Todo {
-	id: ID!
-	text: String!
-	done: Boolean!
-	user: User!
+type Todo  {
+    id: ID!
+    text: String!
+    done: Boolean!
+    user: User!
 }
 
 type User {
-	id: ID!
-	name: String!
+    id: ID!
+    name: String!
 }
 
 type Query {
-	todos: [Todo!]!
+    todos: [Todo!]!
 }
 
 input NewTodo {
-	text: String!
-	userId: String!
+    text: String!
+    userId: String!
 }
 
 type Mutation {
-	createTodo(input: NewTodo!): Todo!
+    createTodo(input: NewTodo!): Todo!
 }
 `)
 }
@@ -256,8 +258,83 @@ func Tools() []byte {
 package tools
 
 import (
-	_ "github.com/99designs/gqlgen"
-	_ "github.com/99designs/gqlgen/graphql/introspection"
+    _ "github.com/99designs/gqlgen"
+    _ "github.com/99designs/gqlgen/graphql/introspection"
 )
+`)
+}
+
+func Resolvers() []byte {
+	return []byte(`package graph
+// This file will not be regenerated automatically.
+//
+// It serves as dependency injection for your app, add any dependencies you require here.
+
+type Resolver struct {
+    todos []*Todo
+}
+`)
+}
+
+// we need this for the package import in resolvers
+func ModelsGen() []byte {
+	return []byte(`{{ $tick := "` + "`" + `" -}}
+package graph   
+// Code generated by github.com/99designs/gqlgen, DO NOT EDIT.
+
+
+type NewTodo struct {
+  Text   string {{ $tick }}json:"text"{{ $tick }}
+  UserID string {{ $tick }}json:"userId"{{ $tick }}
+}
+
+type User struct {
+  ID   string {{ $tick }}json:"id"{{ $tick }}
+  Name string {{ $tick }}json:"name"{{ $tick }}
+}
+`)
+}
+
+func SchemaResolvers() []byte {
+	return []byte(`package graph
+
+// This file will be automatically regenerated based on the schema, any resolver implementations
+// will be copied through when generating and any unknown code will be moved to the end.
+// Code generated by github.com/99designs/gqlgen version v0.17.33
+
+import (
+    "context"
+	"fmt"
+	"math/big"
+    "math/rand"
+
+)
+
+// CreateTodo is the resolver for the createTodo field.
+func (r *mutationResolver) CreateTodo(ctx context.Context, input NewTodo) (*Todo, error) {
+	rand, _ := rand.Intn(100)
+	todo := &Todo{
+		Text: input.Text,
+		ID:   fmt.Sprintf("T%d", rand),
+		User: &User{ID: input.UserID, Name: "user " + input.UserID},
+	}
+	r.todos = append(r.todos, todo)
+	return todo, nil
+}
+
+// Todos is the resolver for the todos field.
+func (r *queryResolver) Todos(ctx context.Context) ([]*Todo, error) {
+	return r.todos, nil
+}
+
+// Mutation returns MutationResolver implementation.
+func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+
+// Query returns QueryResolver implementation.
+func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
+
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }
+
 `)
 }

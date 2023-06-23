@@ -61,7 +61,17 @@ func GetPlayground(srv *handler.Server) []cwhttp.Route {
 		{
 			Method:  http.MethodGet,
 			Path:    "/playground",
-			Handler: playground.Handler("GraphQL playground", "/api/v1/query"),
+			Handler: playground.Handler("GraphQL playground", "/api/v1/graphql/query"),
+		},
+	}
+}
+
+func GetApiQuery(srv *handler.Server) []cwhttp.Route {
+	return []cwhttp.Route{
+		{
+			Method:  http.MethodPost,
+			Path:    "/query",
+			Handler: srv,
 		},
 	}
 }
@@ -206,6 +216,7 @@ func start(cmd *cobra.Command, args []string ) error {
     {{ if .EnableGraphql }}
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
     s.RegisterSubRouter("/", server.GetPlayground(srv))
+    s.RegisterSubRouter("/api/v1/graphql", server.GetApiQuery(srv))
     {{- end}}
 
     errChan := make(chan error, 1)

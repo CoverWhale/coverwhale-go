@@ -147,6 +147,18 @@ func server(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		if err := cfg.Server.createResolver(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createModelsGen(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createSchemaResolver(); err != nil {
+			return err
+		}
+
 		if err := cfg.Server.createTools(); err != nil {
 			return err
 		}
@@ -216,6 +228,18 @@ func (s *Server) createGQLGen() error {
 
 func (s *Server) createSchemaGraphql() error {
 	return cfg.Server.createOrPrintFile("graph/schema.graphqls", tpl.SchemaGraphqls(), dd)
+}
+
+func (s *Server) createResolver() error {
+	return cfg.Server.createOrPrintFile("graph/resolver.go", tpl.Resolvers(), dd)
+}
+
+func (s *Server) createModelsGen() error {
+	return cfg.Server.createOrPrintFile("graph/models_gen.go", tpl.ModelsGen(), dd)
+}
+
+func (s *Server) createSchemaResolver() error {
+	return cfg.Server.createOrPrintFile("graph/schema.resolvers.go", tpl.SchemaResolvers(), dd)
 }
 
 func (s *Server) createTools() error {

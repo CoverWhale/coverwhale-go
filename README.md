@@ -29,8 +29,19 @@ To use the utility simply follow these steps:
     > Builds a local 3 node kubernetes cluster with registry using k3d and deploys your app to the cluster.
 
 5. You can hit your running example app at `myapp.127.0.0.1.nip.io:8080/api/v1/testing -H "Authorization: test"`
+	> A default edgedb instance is also stood up for you. The URL for the edgedb ui can be found in the output of `make deploy-local` that was ran in step 4.
 
 6. Now you can modify the code. For example adding handlers or creating another subrouter in the `server` package.
+
+### Extra flags
+
+The utility has various flags to enable features that may be useful for the new app. For example: `cwgoctl new server --name myapp --enable-nats --enable-graphql`
+
+1. `--enable-nats`
+	> Sets up a NATS integration.
+
+2. `--enable-graphql`
+	> Sets up a GraphQL integration. A playground can be reached at `myapp.127.0.0.1.nip.io:8080/playground`
 
 
 ## HTTP Server
