@@ -292,6 +292,15 @@ type User struct {
   ID   string {{ $tick }}json:"id"{{ $tick }}
   Name string {{ $tick }}json:"name"{{ $tick }}
 }
+
+type Todo struct {
+  ID   string {{ $tick }}json:"id"{{ $tick }}
+  Text string {{ $tick }}json:"text"{{ $tick }}
+  Done bool   {{ $tick }}json:"done"{{ $tick }}
+  User *User  {{ $tick }}json:"user"{{ $tick }}
+}
+
+
 `)
 }
 

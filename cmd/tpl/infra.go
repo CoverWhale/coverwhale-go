@@ -21,7 +21,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: edgedb
-          image: edgedb/edgedb:2
+          image: edgedb/edgedb:3
           ports:
             - containerPort: 5656
           readinessProbe:
