@@ -32,7 +32,9 @@ import (
     "math/rand"
     "net/http"
     "time"
-    
+
+    "github.com/99designs/gqlgen/graphql/handler"
+    "github.com/99designs/gqlgen/graphql/playground"
     "github.com/CoverWhale/coverwhale-go/logging"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
     {{ if not .DisableTelemetry -}}
@@ -52,6 +54,26 @@ func GetRoutes(l *logging.Logger) []cwhttp.Route {
             },
         },
     }
+}
+
+func GetPlayground(srv *handler.Server) []cwhttp.Route {
+	return []cwhttp.Route{
+		{
+			Method:  http.MethodGet,
+			Path:    "/playground",
+			Handler: playground.Handler("GraphQL playground", "/api/v1/graphql/query"),
+		},
+	}
+}
+
+func GetApiQuery(srv *handler.Server) []cwhttp.Route {
+	return []cwhttp.Route{
+		{
+			Method:  http.MethodPost,
+			Path:    "/query",
+			Handler: srv,
+		},
+	}
 }
 
 {{ if not .DisableTelemetry -}}
@@ -138,6 +160,10 @@ import (
     "github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
     {{- end }}
+    {{ if .EnableGraphql }}
+    "github.com/99designs/gqlgen/graphql/handler"
+    "github.com/CoverWhale/{{ .Name }}/graph"
+    {{- end}}
 
 )
 
@@ -187,6 +213,11 @@ func start(cmd *cobra.Command, args []string ) error {
     {{ end }}
 
     s.RegisterSubRouter("/api/v1", server.GetRoutes(s.Logger), server.ExampleMiddleware(s.Logger))
+    {{ if .EnableGraphql }}
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
+    s.RegisterSubRouter("/", server.GetPlayground(srv))
+    s.RegisterSubRouter("/api/v1/graphql", server.GetApiQuery(srv))
+    {{- end}}
 
     errChan := make(chan error, 1)
     go s.Serve(errChan)
@@ -484,229 +515,5 @@ func printSecret() (string, error) {
     
     return k8s.MarshalYaml(secret)
 }
-`)
-}
-
-func Makefile() []byte {
-	return []byte(`PROJECT_NAME := "{{ .Name }}"
-PKG := "{{ .Module }}"
-PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
-GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
-VERSION := $(shell if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git describe --exact-match --tags HEAD 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)"; else echo "dev"; fi)
-GOOS=$(shell go env GOOS)
-GOARCH=$(shell go env GOARCH)
-GOPRIVATE=github.com/CoverWhale
-
-.PHONY: all build docker deps clean test coverage lint docker-local k8s-up k8s-down docker-delete docs update-local deploy-local
-
-all: build
-
-deps: ## Get dependencies
-{{"\t"}}go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-
-lint: deps ## Lint the files
-{{"\t"}}go vet
-{{"\t"}}gocyclo -over 10 -ignore "generated" ./
-
-test: lint ## Run unittests
-{{"\t"}}go test -v ./...
-
-coverage: ## Create test coverage report
-{{"\t"}}go test -cover ./...
-{{"\t"}}go test ./... -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
-
-goreleaser: tidy ## Creates local multiarch releases with GoReleaser
-{{"\t"}}goreleaser release --snapshot --rm-dist
-
-tidy: ## Pull in dependencies
-{{"\t"}}go mod tidy && go mod vendor
-
-{{ .Name }}ctl: tidy ## Builds the binary on the current platform
-{{"\t"}}go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
-
-docs: ## Builds the cli documentation
-{{"\t"}}./{{ .Name }}ctl docs
-
-{{ if not .DisableDeployment }}
-docker-local: ## Builds the container image and pushes to the local k8s registry
-{{"\t"}}docker build -t localhost:50000/{{ .Name }}:latest .
-{{"\t"}}docker push localhost:50000/{{ .Name }}:latest
-
-docker-delete: ## Deletes the local docker image
-{{"\t"}}docker image rm localhost:50000/{{ .Name }}:latest
-
-update-local: docker-local ## Builds the container image and pushes to registry, rolls out the new container into the cluster
-{{"\t"}}kubectl rollout restart deployment/{{ .Name }}
-
-deploy-local: k8s-up {{ .Name }}ctl docker-local ## Creates a local k8s cluster, builds a docker image of {{ .Name }}, and pushes to local registry
-{{"\t"}}./{{ .Name }}ctl deploy manual | kubectl apply -f -
-{{"\t"}}kubectl wait pods -l app={{ .Name }} --for condition=Ready --timeout=30s
-
-generate-yaml: {{ .Name }}ctl
-{{"\t"}}mkdir -p deployments/{dev,prod}
-{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class alb --ingress-annotations $(ANNOTATIONS) --ingress-tls --namespace prime \
-        --registry  005364446802.dkr.ecr.us-east-1.amazonaws.com --service-name prime-{{ .Name }}-$(ENVIRONMENT) \
-        --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
-
-generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
-{{"\t"}}ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.prime.coverwhale.dev TAG=latest ANNOTATIONS="alb.ingress.kubernetes.io/group.name"="dev-apps-internal","alb.ingress.kubernetes.io/scheme"="internal","alb.ingress.kubernetes.io/target-type"="ip","alb.ingress.kubernetes.io/certificate-arn"="arn:aws:acm:us-east-1:005364446802:certificate/6e4aca2c-7087-4625-8ee3-49c8dfc29f5b" make generate-yaml
-
-generate-prod: {{ .Name }}ctl ## Generate prod environment yaml for Argo
-{{"\t"}}ENVIRONMENT=prod INGRESS={{ .Name }}.prime.coverwhale.com TAG=$(VERSION) make generate-yaml
-
-k8s-up: ## Creates a local kubernetes cluster with a registry
-{{"\t"}}k3d registry create {{ .Name }}-registry --port 50000
-{{"\t"}}k3d cluster create {{ .Name }} --registry-use k3d-{{ .Name }}-registry:50000 --servers 3 -p "8080:80@loadbalancer"
-
-k8s-down: ## Destroys the k8s cluster and registry
-{{"\t"}}k3d registry delete {{ .Name }}-registry
-{{"\t"}}k3d cluster delete {{ .Name }}
-{{ end -}}
-
-clean: ## Remove previous build
-{{"\t"}}git clean -fd
-{{"\t"}}git clean -fx
-{{"\t"}}git reset --hard
-
-help: ## Display this help screen
-{{"\t"}}@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-`)
-}
-
-func Dockerfile() []byte {
-	return []byte(`FROM golang:alpine as builder
-WORKDIR /app
-ENV IMAGE_TAG=dev
-RUN apk update && apk upgrade && apk add --no-cache ca-certificates git
-RUN update-ca-certificates
-ADD . /app/
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags="-s -w -X '{{ .Module }}/cmd.Version=$(printf $(git describe --tags | cut -d '-' -f 1)-$(git rev-parse --short HEAD))'" -installsuffix cgo -o {{ .Name }}ctl .
-
-
-FROM scratch
-
-COPY --from=builder /app/{{ .Name }}ctl .
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-ENTRYPOINT ["./{{ .Name }}ctl"]    
-`)
-}
-
-func GoReleaser() []byte {
-	return []byte(`env:
-  - IMAGE_TAG={{.Tag}}
-
-
-project_name: [% .Name %]ctl
-
-builds:
-  - ldflags: "-extldflags= -w -X '[% .Module %]/cmd.Version={{.Tag}}'"
-    flags:
-      - -mod=vendor
-    env:
-      - "CGO_ENABLED=0"
-      - "GO111MODULE=on"
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-source:
-  enabled: true
-`)
-}
-
-func TestWorkflow() []byte {
-	return []byte(`name: test
-on: [push, workflow_call]
-jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [ 1.19.x ]
-        os: [ ubuntu-latest ]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Test
-        run: make test
-      - name: Coverage
-        run: make coverage
-      - name: store coverage
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-coverage
-          path: ./coverage.html 
-`)
-}
-
-func ReleaseWorkflow() []byte {
-	return []byte(`name: release and deploy
-on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'docs/**'
-      - 'deployments/**'
-  pull_request:
-    types: [opened, reopened, edited]
-    paths:
-      - '**.go'
-
-env:
-  DOCKER_REPO: "${{ secrets.ECR_REGISTRY }}"/[% .Name %]
-permissions:
-  id-token: write
-  contents: read
-jobs:
-  test:
-    uses: ./.github/workflows/test.yaml
-  release:
-    permissions:
-      id-token: write
-      contents: write
-    runs-on: ubuntu-latest
-    needs: [test]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::005364446802:role/GithubActionsPulumi
-          role-session-name: github-actions-pulumi
-          aws-region: ${{ secrets.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v1
-      - name: Build branch and push to ecr
-        run: |
-          docker build -t $DOCKER_REPO:${{github.sha}}-t $DOCKER_REPO:latest .
-          docker push -a $DOCKER_REPO
-        #use generated tag instead of latest
-      - run: make generate-dev TAG=${{github.sha}}
-      - run: make docs
-      - name: create manifests and update docs
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          git config --global user.name "${{ github.event.repository.name }} CI"
-          git config --global user.email "automations@coverwhale.com"
-          git add docs deployments
-          git commit -m "update docs and manifests"
-          git push
-`)
-}
-
-func Gitignore() []byte {
-	return []byte(`{{ .Name }}ctl*
-cwgotctl*
 `)
 }

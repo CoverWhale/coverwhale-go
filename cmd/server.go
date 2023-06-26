@@ -39,6 +39,8 @@ func init() {
 	viper.BindPFlag("server.nats_subject", serverCmd.PersistentFlags().Lookup("nats-subject"))
 	serverCmd.PersistentFlags().String("nats-servers", "localhost:4222", "Nats server URLs")
 	viper.BindPFlag("server.nats_servers", serverCmd.PersistentFlags().Lookup("nats-servers"))
+	serverCmd.PersistentFlags().Bool("enable-graphql", false, "Enables GraphQL integration")
+	viper.BindPFlag("server.enable_graphql", serverCmd.PersistentFlags().Lookup("enable-graphql"))
 }
 
 type Delims struct {
@@ -56,7 +58,7 @@ func server(cmd *cobra.Command, args []string) error {
 	cfg.Server.Module = mod
 
 	if !cfg.Debug {
-		dirs := []string{"./cmd", "./server", "./.github/workflows"}
+		dirs := []string{"./cmd", "./server", "./graph", "./dbschema", "./.github/workflows", "./infra"}
 		for _, v := range dirs {
 			if _, err := os.Stat(v); os.IsNotExist(err) {
 				if err := os.MkdirAll(v, 0755); err != nil {
@@ -131,9 +133,58 @@ func server(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// all graphql stuff
+	if cfg.Server.EnableGraphql {
+		if err := cfg.Server.createClient(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createGQLGen(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createSchemaGraphql(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createResolver(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createModelsGen(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createSchemaResolver(); err != nil {
+			return err
+		}
+
+		if err := cfg.Server.createTools(); err != nil {
+			return err
+		}
+	}
+
+	// edgedb
+	if err := cfg.Server.createEdgedbToml(); err != nil {
+		return err
+	}
+
+	if err := cfg.Server.createEdgedbDefault(); err != nil {
+		return err
+	}
+
+	if err := cfg.Server.createEdgedbFuture(); err != nil {
+		return err
+	}
+
+	if err := cfg.Server.createEdgeDBInfra(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
+// template under project.go
 func (s *Server) createMain() error {
 	return cfg.Server.createOrPrintFile("main.go", tpl.Main(), dd)
 }
@@ -166,6 +217,36 @@ func (s *Server) createManual() error {
 	return cfg.Server.createOrPrintFile("cmd/manual.go", tpl.Manual(), dd)
 }
 
+// template under graphql.go
+func (s *Server) createClient() error {
+	return cfg.Server.createOrPrintFile("graph/client.go", tpl.Client(), dd)
+}
+
+func (s *Server) createGQLGen() error {
+	return cfg.Server.createOrPrintFile("gqlgen.yaml", tpl.GQLGen(), dd)
+}
+
+func (s *Server) createSchemaGraphql() error {
+	return cfg.Server.createOrPrintFile("graph/schema.graphqls", tpl.SchemaGraphqls(), dd)
+}
+
+func (s *Server) createResolver() error {
+	return cfg.Server.createOrPrintFile("graph/resolver.go", tpl.Resolvers(), dd)
+}
+
+func (s *Server) createModelsGen() error {
+	return cfg.Server.createOrPrintFile("graph/models_gen.go", tpl.ModelsGen(), dd)
+}
+
+func (s *Server) createSchemaResolver() error {
+	return cfg.Server.createOrPrintFile("graph/schema.resolvers.go", tpl.SchemaResolvers(), dd)
+}
+
+func (s *Server) createTools() error {
+	return cfg.Server.createOrPrintFile("tools.go", tpl.Tools(), dd)
+}
+
+// template under deployment.go
 func (s *Server) createMakefile() error {
 	return cfg.Server.createOrPrintFile("Makefile", tpl.Makefile(), dd)
 }
@@ -190,8 +271,26 @@ func (s *Server) createGitignore() error {
 	return cfg.Server.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
 }
 
+// template under nats.go
 func (s *Server) createNats() error {
 	return cfg.Server.createOrPrintFile("server/nats.go", tpl.Nats(), dd)
+}
+
+// template under edgedb.go
+func (s *Server) createEdgedbToml() error {
+	return cfg.Server.createOrPrintFile("edgedb.toml", tpl.EdgeDBToml(), dd)
+}
+
+func (s *Server) createEdgedbDefault() error {
+	return cfg.Server.createOrPrintFile("dbschema/default.esdl", tpl.DefaultEsdl(), dd)
+}
+
+func (s *Server) createEdgedbFuture() error {
+	return cfg.Server.createOrPrintFile("dbschema/future.esdl", tpl.FutureEsdl(), dd)
+}
+
+func (s *Server) createEdgeDBInfra() error {
+	return cfg.Server.createOrPrintFile("infra/edgedb.yaml", tpl.EdgeDBInfra(), dd)
 }
 
 func (s *Server) createOrPrintFile(n string, b []byte, d Delims) error {

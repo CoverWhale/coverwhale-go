@@ -29,8 +29,35 @@ To use the utility simply follow these steps:
     > Builds a local 3 node kubernetes cluster with registry using k3d and deploys your app to the cluster.
 
 5. You can hit your running example app at `myapp.127.0.0.1.nip.io:8080/api/v1/testing -H "Authorization: test"`
+	> A default edgedb instance is also stood up for you. The URL for the edgedb ui can be found in the output of `make deploy-local` that was ran in step 4.
 
 6. Now you can modify the code. For example adding handlers or creating another subrouter in the `server` package.
+
+### Extra flags
+
+The utility has various flags to enable features that may be useful for the new app. For example: `cwgoctl new server --name myapp --enable-nats --enable-graphql`
+
+1. `--enable-nats`
+	> Sets up a NATS integration.
+
+2. `--enable-graphql`
+	> Sets up a GraphQL integration. A playground can be reached at `myapp.127.0.0.1.nip.io:8080/playground`
+
+### EdgeDB instructions
+
+By default, your new CoverWhale app comes with edgedb enabled. Files related to edgedb can be found under the `dbschema` folder of your new app. To access your edgedb instance, follow these steps:
+
+1. If you haven't already, run `make tidy` and `make deploy-local` to spin up a local kubernetes deployment
+	> Steps 3 & 4 from above. You will need to have docker running in order for the deploy to work
+
+2. Port forward the edgedb service to your local machine `kubectl port-forward svc/edgedb 5656:5656`
+
+3. Create a migration `edgedb --dsn=edgedb://localhost:5656/edgedb --tls-security=insecure migration create`
+
+4. Run the migration `edgedb --dsn=edgedb://localhost:5656/edgedb --tls-security=insecure migrate`
+
+5. Access the UI using the URL that was printed out when `make deploy-local` was running
+	> You will need to hit this URL at least once to ensure you have properly authenticated in. Afterwards you can access it via `http://edgedb.127.0.0.1.nip.io:8080/ui`
 
 
 ## HTTP Server
