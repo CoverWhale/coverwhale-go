@@ -48,7 +48,11 @@ type Delims struct {
 	Second string
 }
 
+type CreateFileFromTemplate func(s *Server) error
+
 var dd Delims
+
+var opts []CreateFileFromTemplate
 
 func server(cmd *cobra.Command, args []string) error {
 	mod := modInfo()
@@ -69,228 +73,233 @@ func server(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if err := cfg.Server.createMain(); err != nil {
-		return err
+	// files we always create
+	opts = []CreateFileFromTemplate{
+		createMain(dd),
+		createRoot(dd),
+		createServer(dd),
+		createServerStart(dd),
+		createServerPackage(dd),
+		createVersion(dd),
+		createMakefile(dd),
+		createDockerfile(dd),
+		createGoReleaser(Delims{First: "[%", Second: "%]"}),
+		createTestWorkflow(Delims{First: "[%", Second: "%]"}),
+		createReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
+		createGitignore(dd),
+		createEdgedbToml(dd),
+		createEdgedbDefault(dd),
+		createEdgedbFuture(dd),
+		createEdgeDBInfra(dd),
 	}
 
-	if err := cfg.Server.createRoot(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createServer(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createServerStart(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createVersion(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createServerPackage(); err != nil {
-		return err
-	}
-
+	// deployment
 	if !cfg.Server.DisableDeployment {
-		if err := cfg.Server.createDeploy(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createManual(); err != nil {
-			return err
-		}
+		opts = append(opts,
+			createDeploy(dd),
+			createManual(dd),
+		)
 	}
 
-	if err := cfg.Server.createMakefile(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createDockerfile(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createGoReleaser(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createTestWorkflow(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createReleaseWorkflow(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createGitignore(); err != nil {
-		return err
-	}
-
-	if cfg.Server.EnableNats {
-		if err := cfg.Server.createNats(); err != nil {
-			return err
-		}
-	}
-
-	// all graphql stuff
+	// graphql
 	if cfg.Server.EnableGraphql {
-		if err := cfg.Server.createClient(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createGQLGen(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createSchemaGraphql(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createResolver(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createModelsGen(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createSchemaResolver(); err != nil {
-			return err
-		}
-
-		if err := cfg.Server.createTools(); err != nil {
-			return err
-		}
+		opts = append(opts,
+			createClient(dd),
+			createGQLGen(dd),
+			createSchemaGraphql(dd),
+			createResolver(dd),
+			createModelsGen(dd),
+			createSchemaResolver(dd),
+			createTools(dd),
+		)
 	}
 
-	// edgedb
-	if err := cfg.Server.createEdgedbToml(); err != nil {
-		return err
+	// nats
+	if cfg.Server.EnableNats {
+		opts = append(opts, createNats(dd))
 	}
 
-	if err := cfg.Server.createEdgedbDefault(); err != nil {
-		return err
-	}
+	err := cfg.Server.CreateFilesFromTemplates(opts...)
 
-	if err := cfg.Server.createEdgedbFuture(); err != nil {
-		return err
-	}
-
-	if err := cfg.Server.createEdgeDBInfra(); err != nil {
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// template under project.go
-func (s *Server) createMain() error {
-	return cfg.Server.createOrPrintFile("main.go", tpl.Main(), dd)
+// core files needed for any project
+// templates under project.go
+func createMain(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("main.go", tpl.Main(), dd)
+	}
 }
 
-func (s *Server) createRoot() error {
-	return cfg.Server.createOrPrintFile("cmd/root.go", tpl.Root(), dd)
+func createRoot(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/root.go", tpl.Root(), dd)
+	}
 }
 
-func (s *Server) createServer() error {
-	return cfg.Server.createOrPrintFile("cmd/server.go", tpl.Server(), dd)
+func createServer(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/server.go", tpl.Server(), dd)
+	}
 }
 
-func (s *Server) createServerStart() error {
-	return cfg.Server.createOrPrintFile("cmd/start.go", tpl.ServerStart(), dd)
+func createServerStart(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/start.go", tpl.ServerStart(), dd)
+	}
 }
 
-func (s *Server) createServerPackage() error {
-	return cfg.Server.createOrPrintFile("server/server.go", tpl.ServerPackage(), dd)
+func createServerPackage(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("server/server.go", tpl.ServerPackage(), dd)
+	}
 }
 
-func (s *Server) createVersion() error {
-	return cfg.Server.createOrPrintFile("cmd/version.go", tpl.Version(), dd)
+func createVersion(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/version.go", tpl.Version(), dd)
+	}
 }
 
-func (s *Server) createDeploy() error {
-	return cfg.Server.createOrPrintFile("cmd/deploy.go", tpl.Deploy(), dd)
+// only if deployment is enabled
+func createDeploy(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/deploy.go", tpl.Deploy(), dd)
+	}
 }
 
-func (s *Server) createManual() error {
-	return cfg.Server.createOrPrintFile("cmd/manual.go", tpl.Manual(), dd)
+func createManual(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/manual.go", tpl.Manual(), dd)
+	}
 }
 
-// template under graphql.go
-func (s *Server) createClient() error {
-	return cfg.Server.createOrPrintFile("graph/client.go", tpl.Client(), dd)
+// build and deployments
+// templates under deployment.go
+func createMakefile(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("Makefile", tpl.Makefile(), dd)
+	}
 }
 
-func (s *Server) createGQLGen() error {
-	return cfg.Server.createOrPrintFile("gqlgen.yaml", tpl.GQLGen(), dd)
+func createDockerfile(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("Dockerfile", tpl.Dockerfile(), dd)
+	}
 }
 
-func (s *Server) createSchemaGraphql() error {
-	return cfg.Server.createOrPrintFile("graph/schema.graphqls", tpl.SchemaGraphqls(), dd)
+func createGoReleaser(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile(".goreleaser.yaml", tpl.GoReleaser(), dd)
+	}
 }
 
-func (s *Server) createResolver() error {
-	return cfg.Server.createOrPrintFile("graph/resolver.go", tpl.Resolvers(), dd)
+func createTestWorkflow(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile(".github/workflows/test.yaml", tpl.TestWorkflow(), dd)
+	}
 }
 
-func (s *Server) createModelsGen() error {
-	return cfg.Server.createOrPrintFile("graph/models_gen.go", tpl.ModelsGen(), dd)
+func createReleaseWorkflow(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile(".github/workflows/release.yaml", tpl.ReleaseWorkflow(), dd)
+	}
 }
 
-func (s *Server) createSchemaResolver() error {
-	return cfg.Server.createOrPrintFile("graph/schema.resolvers.go", tpl.SchemaResolvers(), dd)
+func createGitignore(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
+	}
 }
 
-func (s *Server) createTools() error {
-	return cfg.Server.createOrPrintFile("tools.go", tpl.Tools(), dd)
+// graphql stuff
+// templates under graphql.go
+func createClient(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("graph/client.go", tpl.Client(), dd)
+	}
 }
 
-// template under deployment.go
-func (s *Server) createMakefile() error {
-	return cfg.Server.createOrPrintFile("Makefile", tpl.Makefile(), dd)
+func createGQLGen(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("gqlgen.yaml", tpl.GQLGen(), dd)
+	}
 }
 
-func (s *Server) createDockerfile() error {
-	return cfg.Server.createOrPrintFile("Dockerfile", tpl.Dockerfile(), dd)
+func createSchemaGraphql(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("graph/schema.graphqls", tpl.SchemaGraphqls(), dd)
+	}
 }
 
-func (s *Server) createGoReleaser() error {
-	return cfg.Server.createOrPrintFile(".goreleaser.yaml", tpl.GoReleaser(), Delims{First: "[%", Second: "%]"})
+func createResolver(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("graph/resolver.go", tpl.Resolvers(), dd)
+	}
 }
 
-func (s *Server) createTestWorkflow() error {
-	return cfg.Server.createOrPrintFile(".github/workflows/test.yaml", tpl.TestWorkflow(), Delims{First: "[%", Second: "%]"})
+func createModelsGen(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("graph/models_gen.go", tpl.ModelsGen(), dd)
+	}
 }
 
-func (s *Server) createReleaseWorkflow() error {
-	return cfg.Server.createOrPrintFile(".github/workflows/release.yaml", tpl.ReleaseWorkflow(), Delims{First: "[%", Second: "%]"})
+func createSchemaResolver(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("graph/schema.resolvers.go", tpl.SchemaResolvers(), dd)
+	}
 }
 
-func (s *Server) createGitignore() error {
-	return cfg.Server.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
+func createTools(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("tools.go", tpl.Tools(), dd)
+	}
 }
 
-// template under nats.go
-func (s *Server) createNats() error {
-	return cfg.Server.createOrPrintFile("server/nats.go", tpl.Nats(), dd)
+// nats
+// templates under nats.go
+func createNats(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("server/nats.go", tpl.Nats(), dd)
+	}
 }
 
-// template under edgedb.go
-func (s *Server) createEdgedbToml() error {
-	return cfg.Server.createOrPrintFile("edgedb.toml", tpl.EdgeDBToml(), dd)
+// edgedb
+// templates under edgedb.go
+func createEdgedbToml(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("edgedb.toml", tpl.EdgeDBToml(), dd)
+	}
+}
+func createEdgedbDefault(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("dbschema/default.esdl", tpl.DefaultEsdl(), dd)
+	}
+}
+func createEdgedbFuture(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("dbschema/future.esdl", tpl.FutureEsdl(), dd)
+	}
+}
+func createEdgeDBInfra(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("infra/edgedb.yaml", tpl.EdgeDBInfra(), dd)
+	}
 }
 
-func (s *Server) createEdgedbDefault() error {
-	return cfg.Server.createOrPrintFile("dbschema/default.esdl", tpl.DefaultEsdl(), dd)
-}
+func (s *Server) CreateFilesFromTemplates(opts ...CreateFileFromTemplate) error {
+	for _, t := range opts {
+		if err := t(s); err != nil {
+			return err
+		}
+	}
 
-func (s *Server) createEdgedbFuture() error {
-	return cfg.Server.createOrPrintFile("dbschema/future.esdl", tpl.FutureEsdl(), dd)
-}
-
-func (s *Server) createEdgeDBInfra() error {
-	return cfg.Server.createOrPrintFile("infra/edgedb.yaml", tpl.EdgeDBInfra(), dd)
+	return nil
 }
 
 func (s *Server) createOrPrintFile(n string, b []byte, d Delims) error {
