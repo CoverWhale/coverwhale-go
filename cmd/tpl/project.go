@@ -380,7 +380,7 @@ package cmd
 import (
     "fmt"
     
-    "github.com/CoverWhale/coverwhale-go/k8s"
+    "github.com/CoverWhale/kopts"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
 )
@@ -426,52 +426,52 @@ func manual(cmd *cobra.Command, args []string) error {
 func printDeployment() (string, error) {
     image := fmt.Sprintf("%s/%s:%s", viper.GetString("registry"), viper.GetString("name"), viper.GetString("version"))
     
-    probe := k8s.HTTPProbe{
+    probe := kopts.HTTPProbe{
         Path:          "/healthz",
         Port:          viper.GetInt("port"),
         PeriodSeconds: 10,
         InitialDelay:  10,
     }
     
-    c := k8s.NewContainer(viper.GetString("name"),
-        k8s.ContainerImage(image),
-        k8s.ContainerPort("http", viper.GetInt("port")),
-        k8s.ContainerArgs([]string{"server", "start"}),
+    c := kopts.NewContainer(viper.GetString("name"),
+        kopts.ContainerImage(image),
+        kopts.ContainerPort("http", viper.GetInt("port")),
+        kopts.ContainerArgs([]string{"server", "start"}),
         // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
-        k8s.ContainerEnvVar("{{ .Name | ToUpper }}_PORT", fmt.Sprintf("%d", viper.GetInt("port"))),
-        k8s.ContainerLivenessProbeHTTP(probe),
+        kopts.ContainerEnvVar("{{ .Name | ToUpper }}_PORT", fmt.Sprintf("%d", viper.GetInt("port"))),
+        kopts.ContainerLivenessProbeHTTP(probe),
     )
     
-    p := k8s.NewPodSpec("{{ .Name }}",
-        k8s.PodLabel("app", viper.GetString("name")),
-        k8s.PodContainer(c),
+    p := kopts.NewPodSpec("{{ .Name }}",
+        kopts.PodLabel("app", viper.GetString("name")),
+        kopts.PodContainer(c),
     )
     
-    d := k8s.NewDeployment("{{ .Name }}",
-        k8s.DeploymentNamespace(viper.GetString("namespace")),
-        k8s.DeploymentSelector("app", viper.GetString("name")),
-        k8s.DeploymentPodSpec(p),
+    d := kopts.NewDeployment("{{ .Name }}",
+        kopts.DeploymentNamespace(viper.GetString("namespace")),
+        kopts.DeploymentSelector("app", viper.GetString("name")),
+        kopts.DeploymentPodSpec(p),
     )
     
-    return k8s.MarshalYaml(d)
+    return kopts.MarshalYaml(d)
 
 }
 
 func printService() (string, error) {
-    service := k8s.NewService(viper.GetString("name"),
-        k8s.ServiceNamespace(viper.GetString("namespace")),
-        k8s.ServicePort(viper.GetInt("service-port"), viper.GetInt("port")),
-        k8s.ServiceSelector("app", viper.GetString("name")),
+    service := kopts.NewService(viper.GetString("name"),
+        kopts.ServiceNamespace(viper.GetString("namespace")),
+        kopts.ServicePort(viper.GetInt("service-port"), viper.GetInt("port")),
+        kopts.ServiceSelector("app", viper.GetString("name")),
     )
     
-    return k8s.MarshalYaml(service)
+    return kopts.MarshalYaml(service)
 }
 
 func printIngress() (string, error) {
-    r := k8s.Rule{
+    r := kopts.Rule{
         Host: viper.GetString("ingress-host"),
         TLS:  viper.GetBool("ingress-tls"),
-        Paths: []k8s.Path{
+        Paths: []kopts.Path{
             {
                 Name:    "/",
                 Service: viper.GetString("name"),
@@ -481,9 +481,9 @@ func printIngress() (string, error) {
         },
     }
     
-    ingress := k8s.NewIngress(viper.GetString("name"),
-        k8s.IngressNamespace(viper.GetString("namespace")),
-        k8s.IngressRule(r),
+    ingress := kopts.NewIngress(viper.GetString("name"),
+        kopts.IngressNamespace(viper.GetString("namespace")),
+        kopts.IngressRule(r),
     )
     
     ingress.Annotations = map[string]string{
@@ -496,11 +496,11 @@ func printIngress() (string, error) {
     }
     
     if viper.GetBool("ingress-tls") {
-        f := k8s.IngressClass(viper.GetString("ingress-class"))
+        f := kopts.IngressClass(viper.GetString("ingress-class"))
         f(&ingress)
     }
     
-    return k8s.MarshalYaml(ingress)
+    return kopts.MarshalYaml(ingress)
 }
 
 func printSecret() (string, error) {
@@ -508,12 +508,12 @@ func printSecret() (string, error) {
         return "", nil
     }
     
-    secret := k8s.NewSecret(viper.GetString("secret-name"),
-        k8s.SecretData("apiKey", []byte(viper.GetString("secret-key"))),
-        k8s.SecretNamespace(viper.GetString("namespace")),
+    secret := kopts.NewSecret(viper.GetString("secret-name"),
+        kopts.SecretData("apiKey", []byte(viper.GetString("secret-key"))),
+        kopts.SecretNamespace(viper.GetString("namespace")),
     )
     
-    return k8s.MarshalYaml(secret)
+    return kopts.MarshalYaml(secret)
 }
 `)
 }

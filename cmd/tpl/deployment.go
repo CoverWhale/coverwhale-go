@@ -34,7 +34,7 @@ goreleaser: tidy ## Creates local multiarch releases with GoReleaser
 tidy: ## Pull in dependencies
 {{"\t"}}go mod tidy && go mod vendor
 
-{{ .Name }}ctl: tidy ## Builds the binary on the current platform
+{{ .Name }}ctl: ## Builds the binary on the current platform
 {{"\t"}}go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
 
 docs: ## Builds the cli documentation
@@ -184,7 +184,7 @@ on:
       - '**.go'
 
 env:
-  DOCKER_REPO: "${{ secrets.ECR_REGISTRY }}"/[% .Name %]
+  DOCKER_REPO: ${{ secrets.ECR_REGISTRY }}/[% .Name %]
 permissions:
   id-token: write
   contents: read
@@ -211,7 +211,7 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v1
       - name: Build branch and push to ecr
         run: |
-          docker build -t $DOCKER_REPO:${{github.sha}}-t $DOCKER_REPO:latest .
+          docker build -t $DOCKER_REPO:${{github.sha}} -t $DOCKER_REPO:latest .
           docker push -a $DOCKER_REPO
         #use generated tag instead of latest
       - run: make generate-dev TAG=${{github.sha}}
