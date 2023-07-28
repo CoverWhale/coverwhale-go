@@ -6,15 +6,15 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	"github.com/CoverWhale/logr"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
 	ctx := context.Background()
 	ds := NewInMemoryStore()
-	l := logging.NewLogger()
+	l := logr.NewLogger()
 
 	h := Application{
 		ProductManager: ds,

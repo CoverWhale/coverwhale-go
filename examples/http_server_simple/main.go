@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
 	"github.com/CoverWhale/coverwhale-go/metrics"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	"github.com/CoverWhale/logr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 )
 
-func getRoutes(l *logging.Logger) []cwhttp.Route {
+func getRoutes(l *logr.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
 			Method: http.MethodGet,
@@ -73,7 +73,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
+func exampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Authorization") == "" {

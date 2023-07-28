@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
+	"github.com/CoverWhale/logr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -66,8 +66,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(replacer)
 
+	logger := logr.NewLogger()
+
 	if err := viper.ReadInConfig(); err == nil {
-		logging.Debugf("using config %s", viper.ConfigFileUsed())
+		logger.Debugf("using config %s", viper.ConfigFileUsed())
 	}
 
 	if err := viper.Unmarshal(&cfg); err != nil {

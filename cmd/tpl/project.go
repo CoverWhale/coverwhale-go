@@ -35,7 +35,7 @@ import (
 
     "github.com/99designs/gqlgen/graphql/handler"
     "github.com/99designs/gqlgen/graphql/playground"
-    "github.com/CoverWhale/coverwhale-go/logging"
+    "github.com/CoverWhale/logr"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
     {{ if not .DisableTelemetry -}}
     "github.com/CoverWhale/coverwhale-go/metrics"
@@ -43,7 +43,7 @@ import (
     {{- end }}
 )
 
-func GetRoutes(l *logging.Logger) []cwhttp.Route {
+func GetRoutes(l *logr.Logger) []cwhttp.Route {
     return []cwhttp.Route{
         {
             Method: http.MethodGet,
@@ -127,7 +127,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
     return nil
 }
 
-func ExampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
+func ExampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
     return func(h http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             if r.Header.Get("Authorization") == "" {
@@ -247,7 +247,7 @@ import (
     "os"
     "strings"
     
-    "github.com/CoverWhale/coverwhale-go/logging"
+    "github.com/CoverWhale/logr"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
 )
@@ -298,8 +298,9 @@ func initConfig() {
     viper.SetEnvKeyReplacer(replacer)
     
     // If a config file is found, read it in.
+    logger := logr.NewLogger()
     if err := viper.ReadInConfig(); err == nil {
-        logging.Debugf("using config %s", viper.ConfigFileUsed())
+        logger.Debugf("using config %s", viper.ConfigFileUsed())
     }
     
     if err := viper.Unmarshal(&cfg); err != nil {

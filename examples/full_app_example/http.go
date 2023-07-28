@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	"github.com/CoverWhale/logr"
 	"github.com/go-chi/chi/v5"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
@@ -158,7 +158,7 @@ func getClientByID(w http.ResponseWriter, r *http.Request, cm ClientManager) err
 	return nil
 }
 
-func (a *Application) buildRoutes(l *logging.Logger) []cwhttp.Route {
+func (a *Application) buildRoutes(l *logr.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
 			Method:  http.MethodGet,

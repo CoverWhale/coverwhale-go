@@ -52,8 +52,6 @@ type CreateFileFromTemplate func(s *Server) error
 
 var dd Delims
 
-var opts []CreateFileFromTemplate
-
 func server(cmd *cobra.Command, args []string) error {
 	mod := modInfo()
 	if mod == "command-line-arguments" {
@@ -74,7 +72,7 @@ func server(cmd *cobra.Command, args []string) error {
 	}
 
 	// files we always create
-	opts = []CreateFileFromTemplate{
+	opts := []CreateFileFromTemplate{
 		createMain(dd),
 		createRoot(dd),
 		createServer(dd),
@@ -293,8 +291,8 @@ func createEdgeDBInfra(dd Delims) CreateFileFromTemplate {
 }
 
 func (s *Server) CreateFilesFromTemplates(opts ...CreateFileFromTemplate) error {
-	for _, t := range opts {
-		if err := t(s); err != nil {
+	for _, template := range opts {
+		if err := template(s); err != nil {
 			return err
 		}
 	}

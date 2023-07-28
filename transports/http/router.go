@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
 	"github.com/CoverWhale/coverwhale-go/metrics"
 	cwmiddleware "github.com/CoverWhale/coverwhale-go/transports/http/middleware"
+	"github.com/CoverWhale/logr"
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,13 +36,13 @@ type MiddlewareWithLogger func(*Server, http.Handler) http.Handler
 // errHandler contains a handler that returns an error and a logger
 type ErrHandler struct {
 	Handler handlerWithError
-	Logger  *logging.Logger
+	Logger  *logr.Logger
 }
 
 // Server holds the http.Server, a logger, and the router to attach to the http.Server
 type Server struct {
 	apiServer      *http.Server
-	Logger         *logging.Logger
+	Logger         *logr.Logger
 	Router         *chi.Mux
 	Exporter       *metrics.Exporter
 	traceShutdown  func(context.Context) error
@@ -65,7 +65,7 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 	r := chi.NewRouter()
 
 	s := &Server{
-		Logger:   logging.NewLogger(),
+		Logger:   logr.NewLogger(),
 		Router:   r,
 		Exporter: metrics.NewExporter(),
 		apiServer: &http.Server{
