@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	cuelang.org/go v0.4.3
+	github.com/CoverWhale/logr v0.0.0-20230629171826-fe0aaea2b76b
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/newrelic/go-agent/v3 v3.20.3
 	github.com/prometheus/client_golang v1.15.1

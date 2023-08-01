@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
+	"github.com/CoverWhale/logr"
 	"github.com/nats-io/nats.go"
 )
 
@@ -15,14 +15,14 @@ type NatsBackend struct {
 	Options []nats.Option
 	Conn    *nats.Conn
 	JS      nats.JetStreamContext
-	Logger  *logging.Logger
+	Logger  *logr.Logger
 }
 
 func NewNatsBackend(s string, opts ...nats.Option) *NatsBackend {
 	return &NatsBackend{
 		Servers: s,
 		Options: opts,
-        Logger: logging.NewLogger(),
+        Logger: logr.NewLogger(),
 	}
 }
 

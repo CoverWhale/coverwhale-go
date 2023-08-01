@@ -321,7 +321,7 @@ import (
 
 // CreateTodo is the resolver for the createTodo field.
 func (r *mutationResolver) CreateTodo(ctx context.Context, input NewTodo) (*Todo, error) {
-	rand, _ := rand.Intn(100)
+	rand := rand.Intn(100)
 	todo := &Todo{
 		Text: input.Text,
 		ID:   fmt.Sprintf("T%d", rand),

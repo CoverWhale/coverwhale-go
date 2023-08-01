@@ -5,17 +5,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
+	"github.com/CoverWhale/logr"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/segmentio/ksuid"
 )
 
 func Logging(h http.Handler) http.Handler {
+	logger := logr.NewLogger()
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		defer func() {
-			logging.Infof("path: %v host: %v duration: %dms", r.URL, r.Host, time.Since(start).Milliseconds())
+			logger.Infof("path: %v host: %v duration: %dms", r.URL, r.Host, time.Since(start).Milliseconds())
 		}()
 
 		h.ServeHTTP(w, r)

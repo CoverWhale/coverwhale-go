@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
+	"github.com/CoverWhale/logr"
 )
 
 var (
@@ -93,7 +93,7 @@ func TestErrHandlerServeHTTP(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) error {
 					return NewClientError(ErrTestingError, 400)
 				},
-				Logger: logging.NewLogger(),
+				Logger: logr.NewLogger(),
 			},
 			err:    NewClientError(ErrTestingError, 400),
 			status: 400,
@@ -103,7 +103,7 @@ func TestErrHandlerServeHTTP(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) error {
 					return ErrInternalError
 				},
-				Logger: logging.NewLogger(),
+				Logger: logr.NewLogger(),
 			},
 			err:    ErrInternalError,
 			status: 500,

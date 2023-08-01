@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/CoverWhale/coverwhale-go/logging"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	"github.com/CoverWhale/logr"
 )
 
 type DataStore interface {
@@ -65,7 +65,7 @@ func customHandlerType(w http.ResponseWriter, r *http.Request, ds DataStore) {
 	w.Write([]byte(data))
 }
 
-func exampleMiddleware(l *logging.Logger) func(h http.Handler) http.Handler {
+func exampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Authorization") == "" {
