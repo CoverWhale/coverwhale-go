@@ -11,11 +11,13 @@ type ClientOpt func(*Client)
 
 type Client struct {
 	// Grist API token
-	token string
+	Token string
 	// Grist Server URL
 	URL string
 	// HTTP Client
-	client *http.Client
+	Client *http.Client
+	// Global Filter applied to all requests. Can be overridden with request filter
+	GlobalFilter json.RawMessage
 }
 
 type Request struct {
@@ -23,8 +25,9 @@ type Request struct {
 	Method   string
 	Document string
 	Table    string
-	Filter   json.RawMessage
-	Data     io.Reader
+	// Overrides a client global filter
+	Filter json.RawMessage
+	Data   io.Reader
 }
 
 type RequestOpt func(*Request)
@@ -36,8 +39,8 @@ func NewClient(opts ...ClientOpt) *Client {
 		v(c)
 	}
 
-	if c.client == nil {
-		c.client = http.DefaultClient
+	if c.Client == nil {
+		c.Client = http.DefaultClient
 	}
 
 	return c
@@ -45,7 +48,7 @@ func NewClient(opts ...ClientOpt) *Client {
 
 func SetAPIKey(key string) ClientOpt {
 	return func(c *Client) {
-		c.token = key
+		c.Token = key
 	}
 }
 
@@ -57,7 +60,14 @@ func SetURL(url string) ClientOpt {
 
 func SetHTTPClient(h *http.Client) ClientOpt {
 	return func(c *Client) {
-		c.client = h
+		c.Client = h
+	}
+}
+
+// SetClientGlobalFilter adds a filter to all client requests. Can be overridden with a request filter
+func SetClientGlobalFilter(f json.RawMessage) ClientOpt {
+	return func(c *Client) {
+		c.GlobalFilter = f
 	}
 }
 
@@ -139,22 +149,28 @@ func (c *Client) CreateRecord(document, table string, r io.Reader) (json.RawMess
 
 func (c *Client) httpRequest(request Request) (json.RawMessage, error) {
 	url := fmt.Sprintf("%s%s", c.URL, request.Path)
-	token := fmt.Sprintf("Bearer %s", c.token)
+	token := fmt.Sprintf("Bearer %s", c.Token)
 
 	req, err := http.NewRequest(request.Method, url, request.Data)
 	if err != nil {
 		return nil, err
 	}
 
-	if request.Filter != nil {
-		q := req.URL.Query()
-		q.Add("filter", string(request.Filter))
-		req.URL.RawQuery = q.Encode()
+	q := req.URL.Query()
+
+	if c.GlobalFilter != nil {
+		q.Add("filter", string(c.GlobalFilter))
 	}
+
+	if request.Filter != nil {
+		q.Del("filter")
+		q.Add("filter", string(request.Filter))
+	}
+	req.URL.RawQuery = q.Encode()
 
 	req.Header.Add("Authorization", token)
 
-	resp, err := c.client.Do(req)
+	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
