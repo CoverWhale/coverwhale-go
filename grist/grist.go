@@ -115,7 +115,7 @@ func (c *Client) GetFilteredRecords(document, table string, filter json.RawMessa
 		Method: http.MethodGet,
 	}
 
-	if filter == nil {
+	if filter != nil {
 		request.Filter = filter
 	}
 
