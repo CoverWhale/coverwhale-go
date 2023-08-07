@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newCmd represents the new command
+// subcommand to create new resources
 var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Creates a new type of Cover Whale app",
