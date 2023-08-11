@@ -20,7 +20,7 @@ func getRoutes(l *logr.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
 			Method: http.MethodGet,
-			Path:   "/testing/{testID}",
+			Path:   "/testing-things/{testID}",
 			Handler: &cwhttp.ErrHandler{
 				Handler: testing,
 				Logger:  l,
