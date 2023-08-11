@@ -159,9 +159,10 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
 	subRouter := chi.NewRouter()
 	// we need to register each vector with a unique name, for now its a combination of the prefix and route path
-	name := fmt.Sprintf("%s_%s", strings.ReplaceAll(prefix, "/", "_"), strings.ReplaceAll(routes[0].Path, "/", "_"))
-	counter := metrics.NewCounterVec(fmt.Sprintf("http_requests_%s", name), "HTTP requests by status, path, and method", []string{"code", "method", "path"})
-	hist := metrics.NewHistogramVec(fmt.Sprintf("http_request_latency_%s", name), "HTTP latency by status, path, and method", []string{"code", "method", "path"})
+	replacer := strings.NewReplacer("{", "", "}", "", "/", "_", "[", "", "]", "")
+	name := fmt.Sprintf("%s%s", replacer.Replace(prefix), replacer.Replace(routes[0].Path))
+	counter := metrics.NewCounterVec(fmt.Sprintf("http_requests%s", name), "HTTP requests by status, path, and method", []string{"code", "method", "path"})
+	hist := metrics.NewHistogramVec(fmt.Sprintf("http_request_latency%s", name), "HTTP latency by status, path, and method", []string{"code", "method", "path"})
 
 	// wrap subrouter to catch all middleware and total metrics for the subrouter
 	s.Router.Mount(prefix, cwmiddleware.CodeStats(subRouter, counter, hist))
