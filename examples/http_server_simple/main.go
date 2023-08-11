@@ -11,6 +11,7 @@ import (
 	"github.com/CoverWhale/coverwhale-go/metrics"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 	"github.com/CoverWhale/logr"
+	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 )
@@ -19,7 +20,7 @@ func getRoutes(l *logr.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
 			Method: http.MethodGet,
-			Path:   "/testing",
+			Path:   "/testing-things/{testID}",
 			Handler: &cwhttp.ErrHandler{
 				Handler: testing,
 				Logger:  l,
@@ -37,8 +38,11 @@ func doMore(ctx context.Context) {
 }
 
 func testing(w http.ResponseWriter, r *http.Request) error {
+	id := chi.URLParam(r, "testID")
 	ie := r.Header.Get("internal-error")
 	ce := r.Header.Get("client-error")
+
+	fmt.Println(id)
 
 	if ie != "" {
 		return fmt.Errorf("this is an internal error")
