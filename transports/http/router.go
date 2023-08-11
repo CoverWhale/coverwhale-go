@@ -159,7 +159,7 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
 	subRouter := chi.NewRouter()
 	// we need to register each vector with a unique name, for now its a combination of the prefix and route path
-	replacer := strings.NewReplacer("{", "", "}", "", "/", "_", "[", "", "]", "")
+	replacer := strings.NewReplacer("{", "", "}", "", "/", "_", "[", "_", "]", "_", "-", "_")
 	name := fmt.Sprintf("%s%s", replacer.Replace(prefix), replacer.Replace(routes[0].Path))
 	counter := metrics.NewCounterVec(fmt.Sprintf("http_requests%s", name), "HTTP requests by status, path, and method", []string{"code", "method", "path"})
 	hist := metrics.NewHistogramVec(fmt.Sprintf("http_request_latency%s", name), "HTTP latency by status, path, and method", []string{"code", "method", "path"})
