@@ -380,6 +380,7 @@ package cmd
 
 import (
     "fmt"
+    "strings"
     
     "github.com/CoverWhale/kopts"
     "github.com/spf13/cobra"
@@ -433,13 +434,15 @@ func printDeployment() (string, error) {
         PeriodSeconds: 10,
         InitialDelay:  10,
     }
-    
+
+    // k8s doesn't like dashes in env names
+    replacer := strings.NewReplacer("-", "_")    
     c := kopts.NewContainer(viper.GetString("name"),
         kopts.ContainerImage(image),
         kopts.ContainerPort("http", viper.GetInt("port")),
         kopts.ContainerArgs([]string{"server", "start"}),
         // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
-        kopts.ContainerEnvVar("{{ .Name | ToUpper }}_PORT", fmt.Sprintf("%d", viper.GetInt("port"))),
+        kopts.ContainerEnvVar(replacer.Replace("{{ .Name | ToUpper }}_PORT"), fmt.Sprintf("%d", viper.GetInt("port"))),
         kopts.ContainerLivenessProbeHTTP(probe),
     )
     
