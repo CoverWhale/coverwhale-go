@@ -42,6 +42,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/CoverWhale/logr v0.0.0-20230629171826-fe0aaea2b76b h1:myMhxFSsu8yAQIiUjvUTtd74J1AEO1bZDYSYuOHRGJ0=
 github.com/CoverWhale/logr v0.0.0-20230629171826-fe0aaea2b76b/go.mod h1:W1TWGvlIDpBPv2Uzd66nvxtgwm3Z0k1jBdqZBAuTU8c=
+github.com/CoverWhale/logr v0.0.0-20230811135117-90a42e57497b h1:lrp74cQPL3QnwzGV3fF2TCNcQy9poqO5thM+xHLVxcI=
+github.com/CoverWhale/logr v0.0.0-20230811135117-90a42e57497b/go.mod h1:W1TWGvlIDpBPv2Uzd66nvxtgwm3Z0k1jBdqZBAuTU8c=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
