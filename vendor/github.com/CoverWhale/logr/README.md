@@ -29,7 +29,8 @@ func main() {
 
     // You can crate a new logger with a context message 
     // Get caller returns the name of the current function
-    ctx := logger.WithContext(fmt.Sprintf("function=%s", logr.GetCaller()))
+    functionContext := map[string]string{"function", logr.GetCaller()}
+    ctx := logger.WithContext(functionContext)
     ctx.Info("another message")
 }
 ```

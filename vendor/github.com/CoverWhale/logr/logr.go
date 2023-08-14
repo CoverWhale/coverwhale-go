@@ -20,6 +20,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type Level struct {
@@ -64,6 +65,8 @@ func NewLogger() *Logger {
 
 	l := getLevel(level)
 	logger := log.Default()
+	logger.SetFlags(0)
+	logger.SetPrefix(fmt.Sprintf("timestamp=%s ", time.Now().Format("2006-01-02T15:04:05")))
 	return &Logger{
 		l,
 		logger,
@@ -74,12 +77,11 @@ func NewLogger() *Logger {
 func (l *Logger) log(lvl Level, s interface{}) {
 	if lvl.val <= l.Level.val {
 		if l.contextMessage != "" {
-			l.Printf("%s %s\n", s, l.contextMessage)
+			l.Printf(`level=%s msg="%s"%s`, lvl.name, s, l.contextMessage)
 		} else {
-			l.Println(s)
+			l.Printf(`level=%s msg="%s"`, lvl.name, s)
 		}
 	}
-
 }
 
 func (l *Logger) clone() *Logger {
@@ -87,46 +89,46 @@ func (l *Logger) clone() *Logger {
 	return &copy
 }
 
-func (l *Logger) WithContext(s string) *Logger {
+func (l *Logger) WithContext(s map[string]string) *Logger {
 	c := l.clone()
-	c.contextMessage = s
+	context := ""
+	for k, v := range s {
+		context = fmt.Sprintf("%s %s=%s", context, k, v)
+	}
+	c.contextMessage = context
 
 	return c
 
 }
 
-func buildString(l Level, s interface{}) string {
-	return fmt.Sprintf(`level=%s msg="%s"`, l.name, s)
-}
-
 func (l *Logger) Error(s interface{}) {
-	l.log(ErrorLevel, buildString(ErrorLevel, s))
+	l.log(ErrorLevel, s)
 }
 
 func (l *Logger) Errorf(format string, s ...interface{}) {
 	f := fmt.Sprintf(`%s`, format)
 	m := fmt.Sprintf(f, s...)
-	l.log(ErrorLevel, buildString(ErrorLevel, m))
+	l.log(ErrorLevel, m)
 }
 
 func (l *Logger) Info(s interface{}) {
-	l.log(InfoLevel, buildString(InfoLevel, s))
+	l.log(InfoLevel, s)
 }
 
 func (l *Logger) Infof(format string, s ...interface{}) {
 	f := fmt.Sprintf(`%s`, format)
 	m := fmt.Sprintf(f, s...)
-	l.log(InfoLevel, buildString(InfoLevel, m))
+	l.log(InfoLevel, m)
 }
 
 func (l *Logger) Debug(s interface{}) {
-	l.log(DebugLevel, buildString(DebugLevel, s))
+	l.log(DebugLevel, s)
 }
 
 func (l *Logger) Debugf(format string, s ...interface{}) {
 	f := fmt.Sprintf(`%s`, format)
 	m := fmt.Sprintf(f, s...)
-	l.log(DebugLevel, buildString(DebugLevel, m))
+	l.log(DebugLevel, m)
 }
 
 func (l *Logger) Fatal(s interface{}) {
