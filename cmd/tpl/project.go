@@ -359,17 +359,17 @@ func init() {
     deployCmd.PersistentFlags().String("version", "latest", "Container version (tag)")
     viper.BindPFlag("version", deployCmd.PersistentFlags().Lookup("version"))
     deployCmd.PersistentFlags().Int("service-port", 80, "k8s service port")
-    viper.BindPFlag("service-port", deployCmd.PersistentFlags().Lookup("service-port"))
+    viper.BindPFlag("service_port", deployCmd.PersistentFlags().Lookup("service-port"))
     deployCmd.PersistentFlags().String("ingress-host", "{{ .Name }}.127.0.0.1.nip.io", "k8s ingresss host")
-    viper.BindPFlag("ingress-host", deployCmd.PersistentFlags().Lookup("ingress-host"))
+    viper.BindPFlag("ingress_host", deployCmd.PersistentFlags().Lookup("ingress-host"))
     deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls")
-    viper.BindPFlag("ingress-tls", deployCmd.PersistentFlags().Lookup("ingress-tls"))
+    viper.BindPFlag("ingress_tls", deployCmd.PersistentFlags().Lookup("ingress-tls"))
     deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name")
-    viper.BindPFlag("ingress-class", deployCmd.PersistentFlags().Lookup("ingress-class"))
+    viper.BindPFlag("ingress_class", deployCmd.PersistentFlags().Lookup("ingress-class"))
     deployCmd.PersistentFlags().Bool("insecure", false, "local insecure deployment")
     viper.BindPFlag("insecure", deployCmd.PersistentFlags().Lookup("insecure"))
     deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
-	viper.BindPFlag("ingress-annotations", deployCmd.PersistentFlags().Lookup("ingress-annotations"))
+	viper.BindPFlag("ingress_annotations", deployCmd.PersistentFlags().Lookup("ingress-annotations"))
 }
 `)
 }
@@ -464,7 +464,7 @@ func printDeployment() (string, error) {
 func printService() (string, error) {
     service := kopts.NewService(viper.GetString("name"),
         kopts.ServiceNamespace(viper.GetString("namespace")),
-        kopts.ServicePort(viper.GetInt("service-port"), viper.GetInt("port")),
+        kopts.ServicePort(viper.GetInt("service_port"), viper.GetInt("port")),
         kopts.ServiceSelector("app", viper.GetString("name")),
     )
     
@@ -473,13 +473,13 @@ func printService() (string, error) {
 
 func printIngress() (string, error) {
     r := kopts.Rule{
-        Host: viper.GetString("ingress-host"),
-        TLS:  viper.GetBool("ingress-tls"),
+        Host: viper.GetString("ingress_host"),
+        TLS:  viper.GetBool("ingress_tls"),
         Paths: []kopts.Path{
             {
                 Name:    "/",
                 Service: viper.GetString("name"),
-                Port:    viper.GetInt("service-port"),
+                Port:    viper.GetInt("service_port"),
                 Type:    "Prefix",
             },
         },
@@ -491,16 +491,16 @@ func printIngress() (string, error) {
     )
     
     ingress.Annotations = map[string]string{
-        "external-dns.alpha.kubernetes.io/hostname": viper.GetString("ingress-host"),
-        "alb.ingress.kubernetes.io/listen-ports":    fmt.Sprintf({{ $tick }}[{"HTTP":%d,"HTTPS": 443}]{{ $tick }}, viper.GetInt("service-port")),
+        "external-dns.alpha.kubernetes.io/hostname": viper.GetString("ingress_host"),
+        "alb.ingress.kubernetes.io/listen-ports":    fmt.Sprintf({{ $tick }}[{"HTTP":%d,"HTTPS": 443}]{{ $tick }}, viper.GetInt("service_port")),
     }
     
-    for k, v := range viper.GetStringMapString("ingress-annotations") {
+    for k, v := range viper.GetStringMapString("ingress_annotations") {
         ingress.Annotations[k] = v
     }
     
-    if viper.GetBool("ingress-tls") {
-        f := kopts.IngressClass(viper.GetString("ingress-class"))
+    if viper.GetBool("ingress_tls") {
+        f := kopts.IngressClass(viper.GetString("ingress_class"))
         f(&ingress)
     }
     
@@ -508,12 +508,12 @@ func printIngress() (string, error) {
 }
 
 func printSecret() (string, error) {
-    if viper.GetString("secret-key") == "" {
+    if viper.GetString("secret_key") == "" {
         return "", nil
     }
     
-    secret := kopts.NewSecret(viper.GetString("secret-name"),
-        kopts.SecretData("apiKey", []byte(viper.GetString("secret-key"))),
+    secret := kopts.NewSecret(viper.GetString("secret_name"),
+        kopts.SecretData("apiKey", []byte(viper.GetString("secret_key"))),
         kopts.SecretNamespace(viper.GetString("namespace")),
     )
     
