@@ -464,7 +464,7 @@ func printDeployment() (string, error) {
 func printService() (string, error) {
     service := kopts.NewService(viper.GetString("name"),
         kopts.ServiceNamespace(viper.GetString("namespace")),
-        kopts.ServicePort(viper.GetInt("service-port"), viper.GetInt("port")),
+        kopts.ServicePort(viper.GetInt("service_port"), viper.GetInt("port")),
         kopts.ServiceSelector("app", viper.GetString("name")),
     )
     
@@ -473,13 +473,13 @@ func printService() (string, error) {
 
 func printIngress() (string, error) {
     r := kopts.Rule{
-        Host: viper.GetString("ingress-host"),
-        TLS:  viper.GetBool("ingress-tls"),
+        Host: viper.GetString("ingress_host"),
+        TLS:  viper.GetBool("ingress_tls"),
         Paths: []kopts.Path{
             {
                 Name:    "/",
                 Service: viper.GetString("name"),
-                Port:    viper.GetInt("service-port"),
+                Port:    viper.GetInt("service_port"),
                 Type:    "Prefix",
             },
         },
@@ -491,16 +491,16 @@ func printIngress() (string, error) {
     )
     
     ingress.Annotations = map[string]string{
-        "external-dns.alpha.kubernetes.io/hostname": viper.GetString("ingress-host"),
-        "alb.ingress.kubernetes.io/listen-ports":    fmt.Sprintf({{ $tick }}[{"HTTP":%d,"HTTPS": 443}]{{ $tick }}, viper.GetInt("service-port")),
+        "external-dns.alpha.kubernetes.io/hostname": viper.GetString("ingress_host"),
+        "alb.ingress.kubernetes.io/listen-ports":    fmt.Sprintf({{ $tick }}[{"HTTP":%d,"HTTPS": 443}]{{ $tick }}, viper.GetInt("service_port")),
     }
     
-    for k, v := range viper.GetStringMapString("ingress-annotations") {
+    for k, v := range viper.GetStringMapString("ingress_annotations") {
         ingress.Annotations[k] = v
     }
     
-    if viper.GetBool("ingress-tls") {
-        f := kopts.IngressClass(viper.GetString("ingress-class"))
+    if viper.GetBool("ingress_tls") {
+        f := kopts.IngressClass(viper.GetString("ingress_class"))
         f(&ingress)
     }
     
@@ -508,12 +508,12 @@ func printIngress() (string, error) {
 }
 
 func printSecret() (string, error) {
-    if viper.GetString("secret-key") == "" {
+    if viper.GetString("secret_key") == "" {
         return "", nil
     }
     
-    secret := kopts.NewSecret(viper.GetString("secret-name"),
-        kopts.SecretData("apiKey", []byte(viper.GetString("secret-key"))),
+    secret := kopts.NewSecret(viper.GetString("secret_name"),
+        kopts.SecretData("apiKey", []byte(viper.GetString("secret_key"))),
         kopts.SecretNamespace(viper.GetString("namespace")),
     )
     
