@@ -87,7 +87,6 @@ func server(cmd *cobra.Command, args []string) error {
 		createGitignore(dd),
 		createEdgedbToml(dd),
 		createEdgedbDefault(dd),
-		createEdgedbFuture(dd),
 		createEdgeDBInfra(dd),
 	}
 
@@ -277,11 +276,6 @@ func createEdgedbToml(dd Delims) CreateFileFromTemplate {
 func createEdgedbDefault(dd Delims) CreateFileFromTemplate {
 	return func(s *Server) error {
 		return cfg.Server.createOrPrintFile("dbschema/default.esdl", tpl.DefaultEsdl(), dd)
-	}
-}
-func createEdgedbFuture(dd Delims) CreateFileFromTemplate {
-	return func(s *Server) error {
-		return cfg.Server.createOrPrintFile("dbschema/future.esdl", tpl.FutureEsdl(), dd)
 	}
 }
 func createEdgeDBInfra(dd Delims) CreateFileFromTemplate {
