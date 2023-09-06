@@ -25,7 +25,7 @@ func HandleMessage(m *nats.Msg) {
 	switch m.Subject {
 	case "prime.{{ .Name }}.pub":
         fmt.Printf("received pub %s\n", string(m.Data))
-	case "tprime.{{ .Name }}.req":
+	case "prime.{{ .Name }}.req":
 		if err := HandleRequest(m); err != nil {
 			logr.Errorf("error sending request: %v", err)
 		}
