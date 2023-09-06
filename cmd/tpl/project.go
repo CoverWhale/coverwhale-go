@@ -5,7 +5,6 @@ func Server() []byte {
 
 import (
     "github.com/spf13/cobra"
-    "github.com/spf13/viper"
 )
 
 var serverCmd = &cobra.Command{
@@ -157,24 +156,17 @@ func ServerStart() []byte {
 
 import (
     "context"
+    "strings"
 
     "{{ .Module }}/server"
-
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-    {{ if .EnableNats }}
-    cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
-    {{ end }}
+    {{ if .EnableNats }}cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"{{ end }}
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
-    {{ if not .DisableTelemetry -}}
-    "github.com/CoverWhale/coverwhale-go/metrics"
-    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-    {{- end }}
-    {{ if .EnableGraphql }}
-    "github.com/99designs/gqlgen/graphql/handler"
-    "github.com/CoverWhale/{{ .Name }}/graph"
-    {{- end}}
-
+    {{ if not .DisableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"{{- end }}
+    {{ if .EnableGraphql }}"github.com/99designs/gqlgen/graphql/handler"
+    "github.com/CoverWhale/{{ .Name }}/graph"{{- end}}
 )
 
 var startCmd = &cobra.Command{
@@ -227,7 +219,8 @@ func start(cmd *cobra.Command, args []string ) error {
     }
 
     {{ if .EnableGraphql }}go n.Resolve(errChan){{ end }}
-    {{ end }}
+
+    server.Watch(n, "prime.{{ .Name }}.*"){{ end }}
 
     s.RegisterSubRouter("/api/v1", server.GetRoutes(s.Logger), server.ExampleMiddleware(s.Logger))
     {{ if .EnableGraphql }}
@@ -353,6 +346,11 @@ func init() {
 
 func Flags() []byte {
 	return []byte(`package cmd
+import (
+    "github.com/spf13/cobra"
+    "github.com/spf13/viper"
+)
+
 //Flags are defined here. Because of the way Viper binds values, if the same flag name is called
 // with viper.BindPFlag multiple times during init() the value will be overwritten. For example if
 // two subcommands each have a flag called name but they each have their own default values,
