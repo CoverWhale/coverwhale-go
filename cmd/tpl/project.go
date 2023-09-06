@@ -11,12 +11,19 @@ import (
 var serverCmd = &cobra.Command{
     Use:   "server",
     Short: "subcommand to control the server",
+    // PersistentPostRun is used here because this is just a subcommand with no run function
+    PersistentPreRun: bindServerCmdFlags,
 }
 
 func init() {
     rootCmd.AddCommand(serverCmd)
-    serverCmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
-    viper.BindPFlag("port", serverCmd.PersistentFlags().Lookup("port"))
+    serverFlags(serverCmd)
+    {{ if .EnableNats }}natsFlags(serverCmd){{ end }}
+}
+
+func bindServerCmdFlags(cmd *cobra.Command, args []string) {
+    bindServerFlags(cmd)
+    {{ if .EnableNats }}bindNatsFlags(cmd){{ end}}
 }
 `)
 }
@@ -154,6 +161,9 @@ import (
     "{{ .Module }}/server"
 
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+    {{ if .EnableNats }}
+    cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
+    {{ end }}
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
     {{ if not .DisableTelemetry -}}
@@ -198,28 +208,34 @@ func start(cmd *cobra.Command, args []string ) error {
 
     s := cwhttp.NewHTTPServer(
         cwhttp.SetServerPort(viper.GetInt("port")),
-    {{ if not .DisableTelemetry -}}
+        {{ if not .DisableTelemetry -}}
         cwhttp.SetTracerProvider(tp),
-    {{- end }}
+        {{- end }}
     )
 
+    errChan := make(chan error, 1)
+
+    {{ if .EnableGraphql }}resolver := &graph.Resolver{}{{ end }}
+
     {{ if .EnableNats }}
-    backend := server.NewNatsBackend("{{ .NatsServers }}")
-    if err := backend.Connect(); err != nil {
+    n := cwnats.NewNATSClient("prime.{{ .Name }}.>", strings.Split(viper.GetString("nats_urls"), ","){{ if .EnableGraphql }},
+        cwnats.SetGraphQLExecutableSchema(graph.NewExecutableSchema(graph.Config{Resolvers: resolver})),{{ end }}
+    )
+
+    if err := n.Connect(); err != nil {
         return err
     }
 
-    backend.Watch("{{ .NatsSubject }}")
+    {{ if .EnableGraphql }}go n.Resolve(errChan){{ end }}
     {{ end }}
 
     s.RegisterSubRouter("/api/v1", server.GetRoutes(s.Logger), server.ExampleMiddleware(s.Logger))
     {{ if .EnableGraphql }}
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
+    srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
     s.RegisterSubRouter("/", server.GetPlayground(srv))
     s.RegisterSubRouter("/api/v1/graphql", server.GetApiQuery(srv))
     {{- end}}
 
-    errChan := make(chan error, 1)
     go s.Serve(errChan)
     s.AutoHandleErrors(ctx, errChan)
 
@@ -335,6 +351,43 @@ func init() {
 `)
 }
 
+func Flags() []byte {
+	return []byte(`package cmd
+//Flags are defined here. Because of the way Viper binds values, if the same flag name is called
+// with viper.BindPFlag multiple times during init() the value will be overwritten. For example if
+// two subcommands each have a flag called name but they each have their own default values,
+// viper can overwrite any value passed in for one subcommand with the default value of the other subcommand.
+// The answer here is to not use init() and instead use something like PersistentPreRun to bind the
+// viper values. Using init for the cobra flags is ok, they are only in here to limit duplication of names.
+
+{{ if .EnableNats }}
+// bindNatsFlags binds nats flag values to viper
+func bindNatsFlags(cmd *cobra.Command) {
+	viper.BindPFlag("nats_urls", cmd.Flags().Lookup("nats-urls"))
+}
+
+// natsFlags adds the nats flags to the passed in cobra command
+func natsFlags(cmd *cobra.Command) {
+    cmd.PersistentFlags().String("nats-urls", "nats://localhost:4222", "NATS server URL(s)")
+}
+{{ end }}
+
+// bindServerFlags binds the secret flag values to viper
+func bindServerFlags(cmd *cobra.Command) {
+    viper.BindPFlag("port", cmd.Flags().Lookup("port"))
+    viper.BindPFlag("enable_verification", cmd.Flags().Lookup("enable-verification"))
+    viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
+}
+
+// sererFlags adds the server flags to the passed in command
+func serverFlags(cmd *cobra.Command) {
+    cmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
+    cmd.PersistentFlags().Bool("enable-verification", false, "Enable driver verification")
+    cmd.PersistentFlags().String("tempo-url", "", "URL for Tempo")
+}
+`)
+}
+
 func Deploy() []byte {
 	return []byte(`package cmd
 
@@ -346,30 +399,40 @@ import (
 var deployCmd = &cobra.Command{
     Use:   "deploy",
     Short: "Create k8s deployment info",
+    PersistentPreRun: bindDeployCmdFlags,
 }
 
 func init() {
     rootCmd.AddCommand(deployCmd)
-    deployCmd.PersistentFlags().String("name", "{{ .Name }}", "Name of the app")
-    viper.BindPFlag("name", deployCmd.PersistentFlags().Lookup("name"))
-    deployCmd.PersistentFlags().String("registry", "k3d-{{ .Name }}-registry:50000", "Container registry")
-    viper.BindPFlag("registry", deployCmd.PersistentFlags().Lookup("registry"))
+    deployCmd.PersistentFlags().String("name", "prime-mvr", "Name of the app")
+    deployCmd.PersistentFlags().String("registry", "k3d-mvr-registry:50000", "Container registry")
     deployCmd.PersistentFlags().String("namespace", "default", "Deployment Namespace")
-    viper.BindPFlag("namespace", deployCmd.PersistentFlags().Lookup("namespace"))
     deployCmd.PersistentFlags().String("version", "latest", "Container version (tag)")
-    viper.BindPFlag("version", deployCmd.PersistentFlags().Lookup("version"))
     deployCmd.PersistentFlags().Int("service-port", 80, "k8s service port")
-    viper.BindPFlag("service_port", deployCmd.PersistentFlags().Lookup("service-port"))
-    deployCmd.PersistentFlags().String("ingress-host", "{{ .Name }}.127.0.0.1.nip.io", "k8s ingresss host")
-    viper.BindPFlag("ingress_host", deployCmd.PersistentFlags().Lookup("ingress-host"))
+    deployCmd.PersistentFlags().String("service-name", "prime-mvr", "k8s service name")
+    deployCmd.PersistentFlags().String("ingress-host", "mvr.127.0.0.1.nip.io", "k8s ingresss host")
     deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls")
-    viper.BindPFlag("ingress_tls", deployCmd.PersistentFlags().Lookup("ingress-tls"))
     deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name")
-    viper.BindPFlag("ingress_class", deployCmd.PersistentFlags().Lookup("ingress-class"))
-    deployCmd.PersistentFlags().Bool("insecure", false, "local insecure deployment")
-    viper.BindPFlag("insecure", deployCmd.PersistentFlags().Lookup("insecure"))
     deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
-	viper.BindPFlag("ingress_annotations", deployCmd.PersistentFlags().Lookup("ingress-annotations"))
+    natsFlags(deployCmd)
+    serverFlags(deployCmd)
+}
+
+func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
+    viper.BindPFlag("name", cmd.Flags().Lookup("name"))
+    viper.BindPFlag("registry", cmd.Flags().Lookup("registry"))
+    viper.BindPFlag("namespace", cmd.Flags().Lookup("namespace"))
+    viper.BindPFlag("version", cmd.Flags().Lookup("version"))
+    viper.BindPFlag("service_port", cmd.Flags().Lookup("service-port"))
+    viper.BindPFlag("service_name", cmd.Flags().Lookup("service-name"))
+    viper.BindPFlag("ingress_host", cmd.Flags().Lookup("ingress-host"))
+    viper.BindPFlag("ingress_tls", cmd.Flags().Lookup("ingress-tls"))
+    viper.BindPFlag("ingress_class", cmd.Flags().Lookup("ingress-class"))
+    viper.BindPFlag("insecure", cmd.Flags().Lookup("insecure"))
+    viper.BindPFlag("ingress_annotations", cmd.Flags().Lookup("ingress-annotations"))
+    viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
+    bindServerFlags(cmd)
+    bindNatsFlags(cmd)
 }
 `)
 }
@@ -462,7 +525,7 @@ func printDeployment() (string, error) {
 }
 
 func printService() (string, error) {
-    service := kopts.NewService(viper.GetString("name"),
+    service := kopts.NewService(viper.GetString("service_name"),
         kopts.ServiceNamespace(viper.GetString("namespace")),
         kopts.ServicePort(viper.GetInt("service_port"), viper.GetInt("port")),
         kopts.ServiceSelector("app", viper.GetString("name")),

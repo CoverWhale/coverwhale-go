@@ -251,8 +251,7 @@ type Mutation {
 
 // needed to import gql
 func Tools() []byte {
-	return []byte(`
-//go:build tools
+	return []byte(`//go:build tools
 // +build tools
 
 package tools

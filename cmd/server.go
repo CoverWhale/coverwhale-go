@@ -36,8 +36,6 @@ func init() {
 	serverCmd.PersistentFlags().Bool("enable-nats", false, "Enables NATS integration")
 	viper.BindPFlag("server.enable_nats", serverCmd.PersistentFlags().Lookup("enable-nats"))
 	serverCmd.PersistentFlags().String("nats-subject", "", "Subject(s) to listen on")
-	viper.BindPFlag("server.nats_subject", serverCmd.PersistentFlags().Lookup("nats-subject"))
-	serverCmd.PersistentFlags().String("nats-servers", "localhost:4222", "Nats server URLs")
 	viper.BindPFlag("server.nats_servers", serverCmd.PersistentFlags().Lookup("nats-servers"))
 	serverCmd.PersistentFlags().Bool("enable-graphql", false, "Enables GraphQL integration")
 	viper.BindPFlag("server.enable_graphql", serverCmd.PersistentFlags().Lookup("enable-graphql"))
@@ -88,6 +86,7 @@ func server(cmd *cobra.Command, args []string) error {
 		createEdgedbToml(dd),
 		createEdgedbDefault(dd),
 		createEdgeDBInfra(dd),
+		createFlags(dd),
 	}
 
 	// deployment
@@ -160,6 +159,12 @@ func createServerPackage(dd Delims) CreateFileFromTemplate {
 func createVersion(dd Delims) CreateFileFromTemplate {
 	return func(s *Server) error {
 		return cfg.Server.createOrPrintFile("cmd/version.go", tpl.Version(), dd)
+	}
+}
+
+func createFlags(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/flags.go", tpl.Flags(), dd)
 	}
 }
 
