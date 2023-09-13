@@ -194,7 +194,7 @@ resolver:
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-#  - "github.com/CoverWhale/{{ .Name }}/graph"
+#  - "{{ .Module }}/graph"
 
 # This section declares type mapping between the GraphQL and go type systems
 #
