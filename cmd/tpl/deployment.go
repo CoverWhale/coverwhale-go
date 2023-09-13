@@ -58,7 +58,7 @@ deploy-local: k8s-up {{ if .EnableGraphql }}schema{{- end}} edgedb {{ .Name }}ct
 generate-yaml: {{ .Name }}ctl
 {{"\t"}}mkdir -p deployments/{dev,prod}
 {{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class alb --ingress-annotations $(ANNOTATIONS) --ingress-tls --namespace prime \
-        --registry  005364446802.dkr.ecr.us-east-1.amazonaws.com --service-name prime-{{ .Name }}-$(ENVIRONMENT) \
+        --registry  005364446802.dkr.ecr.us-east-1.amazonaws.com --service-name {{ .Name }}-$(ENVIRONMENT) \
         --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
 
 generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo

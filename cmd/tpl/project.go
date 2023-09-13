@@ -166,7 +166,7 @@ import (
     {{ if not .DisableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"{{- end }}
     {{ if .EnableGraphql }}"github.com/99designs/gqlgen/graphql/handler"
-    "github.com/CoverWhale/{{ .Name }}/graph"{{- end}}
+    "{{ .Module }}/graph"{{- end}}
 )
 
 var startCmd = &cobra.Command{
@@ -403,13 +403,13 @@ var deployCmd = &cobra.Command{
 
 func init() {
     rootCmd.AddCommand(deployCmd)
-    deployCmd.PersistentFlags().String("name", "prime-mvr", "Name of the app")
-    deployCmd.PersistentFlags().String("registry", "k3d-mvr-registry:50000", "Container registry")
+    deployCmd.PersistentFlags().String("name", "{{ .Name }}", "Name of the app")
+    deployCmd.PersistentFlags().String("registry", "k3d-{{ .Name }}-registry:50000", "Container registry")
     deployCmd.PersistentFlags().String("namespace", "default", "Deployment Namespace")
     deployCmd.PersistentFlags().String("version", "latest", "Container version (tag)")
     deployCmd.PersistentFlags().Int("service-port", 80, "k8s service port")
-    deployCmd.PersistentFlags().String("service-name", "prime-mvr", "k8s service name")
-    deployCmd.PersistentFlags().String("ingress-host", "mvr.127.0.0.1.nip.io", "k8s ingresss host")
+    deployCmd.PersistentFlags().String("service-name", "{{ .Name }}", "k8s service name")
+    deployCmd.PersistentFlags().String("ingress-host", "{{ .Name }}.127.0.0.1.nip.io", "k8s ingresss host")
     deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls")
     deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name")
     deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
