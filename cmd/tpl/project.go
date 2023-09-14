@@ -506,6 +506,7 @@ func printDeployment() (string, error) {
         // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
         kopts.ContainerEnvVar(replacer.Replace("{{ .Name | ToUpper }}_PORT"), fmt.Sprintf("%d", viper.GetInt("port"))),
         kopts.ContainerLivenessProbeHTTP(probe),
+        {{ if .EnableNats }}kopts.ContainerEnvVar("{{ .Name | ToUpper }}_NATS_URLS", viper.GetString("nats_urls")),{{ end }}
     )
     
     p := kopts.NewPodSpec("{{ .Name }}",
