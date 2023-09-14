@@ -112,7 +112,10 @@ func server(cmd *cobra.Command, args []string) error {
 
 	// nats
 	if cfg.Server.EnableNats {
-		opts = append(opts, createNats(dd))
+		opts = append(opts,
+			createNats(dd),
+			createNatsInfra(dd),
+		)
 	}
 
 	err := cfg.Server.CreateFilesFromTemplates(opts...)
@@ -286,6 +289,12 @@ func createEdgedbDefault(dd Delims) CreateFileFromTemplate {
 func createEdgeDBInfra(dd Delims) CreateFileFromTemplate {
 	return func(s *Server) error {
 		return cfg.Server.createOrPrintFile("infra/edgedb.yaml", tpl.EdgeDBInfra(), dd)
+	}
+}
+
+func createNatsInfra(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("infra/nats.yaml", tpl.NATSInfra(), dd)
 	}
 }
 

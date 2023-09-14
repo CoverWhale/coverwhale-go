@@ -166,3 +166,20 @@ spec:
 
 `)
 }
+
+func NATSInfra() []byte {
+	return []byte(`
+config:
+  cluster:
+    enabled: true
+  jetstream:
+    enabled: true
+    fileStore:
+      enabled: false
+      pvc:
+        enabled: false
+      maxSize: 1Gi
+  natsBox:
+    enabled: true
+`)
+}
