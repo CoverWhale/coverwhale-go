@@ -1,5 +1,28 @@
 package tpl
 
+func Docs() []byte {
+	return []byte(`package cmd
+
+import (
+	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
+)
+
+var docsCmd = &cobra.Command{
+	Use:   "docs",
+	Short: "Generate cli documentation",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return doc.GenMarkdownTree(rootCmd, "./docs")
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(docsCmd)
+}
+
+`)
+}
+
 func Server() []byte {
 	return []byte(`package cmd
 
@@ -156,7 +179,7 @@ func ServerStart() []byte {
 
 import (
     "context"
-    "strings"
+    {{ if .EnableNats }}strings{{ end }}
 
     "{{ .Module }}/server"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
@@ -413,7 +436,7 @@ func init() {
     deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls")
     deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name")
     deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
-    natsFlags(deployCmd)
+    {{ if .EnableNats }}natsFlags(deployCmd){{ end }}
     serverFlags(deployCmd)
 }
 
@@ -431,7 +454,7 @@ func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
     viper.BindPFlag("ingress_annotations", cmd.Flags().Lookup("ingress-annotations"))
     viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
     bindServerFlags(cmd)
-    bindNatsFlags(cmd)
+    {{ if .EnableNats }}bindNatsFlags(cmd){{ end }}
 }
 `)
 }

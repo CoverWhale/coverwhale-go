@@ -38,6 +38,7 @@ tidy: ## Pull in dependencies
 {{"\t"}}go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
 
 docs: ## Builds the cli documentation
+{{"\t"}}mkdir -p docs
 {{"\t"}}./{{ .Name }}ctl docs
 
 {{ if not .DisableDeployment }}
@@ -62,9 +63,11 @@ generate-yaml: {{ .Name }}ctl
         --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
 
 generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
+{{"\t"}}mkdir -p deployments/dev
 {{"\t"}}ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.prime.coverwhale.dev TAG=latest ANNOTATIONS="alb.ingress.kubernetes.io/group.name"="dev-apps-internal","alb.ingress.kubernetes.io/scheme"="internal","alb.ingress.kubernetes.io/target-type"="ip","alb.ingress.kubernetes.io/certificate-arn"="arn:aws:acm:us-east-1:005364446802:certificate/6e4aca2c-7087-4625-8ee3-49c8dfc29f5b" make generate-yaml
 
 generate-prod: {{ .Name }}ctl ## Generate prod environment yaml for Argo
+{{"\t"}}mkdir -p deployments/prod
 {{"\t"}}ENVIRONMENT=prod INGRESS={{ .Name }}.prime.coverwhale.com TAG=$(VERSION) make generate-yaml
 
 k8s-up: ## Creates a local kubernetes cluster with a registry
@@ -148,7 +151,11 @@ source:
 
 func TestWorkflow() []byte {
 	return []byte(`name: test
-on: [push, workflow_call]
+on: 
+  push:
+    paths:
+      - '**.go'
+  workflow_call:
 jobs:
   test:
     strategy:
@@ -220,8 +227,9 @@ jobs:
           docker build -t $DOCKER_REPO:${{github.sha}} -t $DOCKER_REPO:latest .
           docker push -a $DOCKER_REPO
         #use generated tag instead of latest
-      - run: make generate-dev TAG=${{github.sha}}
-      - run: make docs
+      - run: |
+          make generate-dev TAG=${{github.sha}}
+          make docs
       - name: create manifests and update docs
         if: ${{ github.event_name == 'push' }}
         run: |
@@ -233,8 +241,66 @@ jobs:
 `)
 }
 
+func TaggedReleaseWorkflow() []byte {
+	return []byte(`name: release and deploy
+on:
+  push:
+    tags:
+      - '*'
+env:
+  DOCKER_REPO: ${{ secrets.ECR_REGISTRY }}/[% .Name %]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
+  release:
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2 
+        with:
+          token: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::005364446802:role/GithubActionsPulumi
+          role-session-name: github-actions-pulumi
+          aws-region: ${{ secrets.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v1
+      - name: Build with version and latest and push to ECR
+        run: |
+          docker build -t $DOCKER_REPO:${{ github.ref_name }} -t $DOCKER_REPO:latest . 
+          docker push -a $DOCKER_REPO
+      - run: |
+          make generate-prod TAG=${{ github.ref_name }}
+          make docs
+      - name: create manifests and update docs
+        run: |
+          git config --global user.name "${{ github.event.repository.name }} CI"
+          git config --global user.email "automation@users.noreply.github.com"
+          git add docs deployments
+          git commit -m "update docs and manifests"
+          git push origin HEAD:main
+`)
+}
+
 func Gitignore() []byte {
 	return []byte(`{{ .Name }}ctl*
 cwgotctl*
+dist/
 `)
 }
