@@ -82,11 +82,13 @@ func server(cmd *cobra.Command, args []string) error {
 		createGoReleaser(Delims{First: "[%", Second: "%]"}),
 		createTestWorkflow(Delims{First: "[%", Second: "%]"}),
 		createReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
+		createTaggedReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
 		createGitignore(dd),
 		createEdgedbToml(dd),
 		createEdgedbDefault(dd),
 		createEdgeDBInfra(dd),
 		createFlags(dd),
+		createDocs(dd),
 	}
 
 	// deployment
@@ -171,6 +173,12 @@ func createFlags(dd Delims) CreateFileFromTemplate {
 	}
 }
 
+func createDocs(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile("cmd/docs.go", tpl.Docs(), dd)
+	}
+}
+
 // only if deployment is enabled
 func createDeploy(dd Delims) CreateFileFromTemplate {
 	return func(s *Server) error {
@@ -213,6 +221,12 @@ func createTestWorkflow(dd Delims) CreateFileFromTemplate {
 func createReleaseWorkflow(dd Delims) CreateFileFromTemplate {
 	return func(s *Server) error {
 		return cfg.Server.createOrPrintFile(".github/workflows/release.yaml", tpl.ReleaseWorkflow(), dd)
+	}
+}
+
+func createTaggedReleaseWorkflow(dd Delims) CreateFileFromTemplate {
+	return func(s *Server) error {
+		return cfg.Server.createOrPrintFile(".github/workflows/tagged_release.yaml", tpl.TaggedReleaseWorkflow(), dd)
 	}
 }
 
