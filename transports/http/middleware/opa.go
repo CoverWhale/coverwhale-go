@@ -62,7 +62,7 @@ type Trailer struct {
 }
 
 func StandardValidator(h http.Handler) http.Handler {
-	url := fmt.Sprintf("%s/v1/data/cw", SideCarOPA)
+	url := fmt.Sprintf("%s/v1/data/cw", CentralOPA)
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 

@@ -1,0 +1,61 @@
+{
+	"sample_value": "this is a test for the example handler",
+	"input": {
+		"business_type": "HOTSHOT",
+		"commodities": [
+			"TEXTILES"
+		],
+		"state": "PA",
+		"drivers": [
+			{
+				"id": "john",
+				"experience": 3,
+				"age": 23,
+				"avds": []
+			},
+			{
+				"id": "pete",
+				"experience": 2,
+				"age": 70,
+				"avds": ["AE06"]
+			}
+		],
+		"vehicles": [
+			{
+				"id": "12345",
+				"body_type": "PICKUP",
+				"class": 2,
+				"model_year": 2004,
+				"amount": 200000
+			},
+			{
+				"id": "12345",
+				"body_type": "PICKUP",
+				"class": 5,
+				"model_year": 2004,
+				"amount": 200000
+			},
+			{
+				"id": "12345",
+				"body_type": "PICKUP",
+				"class": 4,
+				"model_year": 2004,
+				"amount": 200000
+			},
+			{
+				"id": "12345",
+				"body_type": "PICKUP",
+				"class": 4,
+				"model_year": 2005,
+				"amount": 200000
+			}
+		],
+		"trailers": [
+			{
+				"id": "1234",
+				"amount": 50000,
+				"trailer_type": "DRYVANTRAILER"
+			}
+		]
+	}
+}
