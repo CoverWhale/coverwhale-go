@@ -18,14 +18,14 @@ type Request struct {
 func getRoutes(l *logr.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
-			Method:  http.MethodGet,
+			Method:  http.MethodPost,
 			Path:    "/test",
 			Handler: http.HandlerFunc(test),
 		},
 		{
 			Method:  http.MethodPost,
 			Path:    "/test-custom",
-			Handler: middleware.CustomValidator(http.HandlerFunc(test), "http://localhost:8181", "cw/underwriting"),
+			Handler: middleware.CustomValidator(http.HandlerFunc(test), "http://opa.pa.jhbcomputers.com", "cw/underwriting"),
 		},
 	}
 }

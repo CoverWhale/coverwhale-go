@@ -40,7 +40,7 @@ type Input struct {
 }
 
 type Driver struct {
-	Name       string   `json:"name"`
+	ID         string   `json:"id"`
 	Experience int      `json:"experience"`
 	Age        int      `json:"age"`
 	AVDs       []string `json:"avds"`
@@ -138,6 +138,7 @@ func validate(w http.ResponseWriter, r io.Reader, url string) bool {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return false
 	}
+
 	if resp.StatusCode != 200 {
 		http.Error(w, http.StatusText(resp.StatusCode), resp.StatusCode)
 		return false
