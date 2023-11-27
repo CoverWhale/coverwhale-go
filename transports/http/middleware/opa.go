@@ -61,6 +61,7 @@ type Trailer struct {
 	Amount      int    `json:"amount"`
 }
 
+// StandardValidator calls the central OPA server with the full cw validation pacakge
 func StandardValidator(h http.Handler) http.Handler {
 	url := fmt.Sprintf("%s/v1/data/cw", CentralOPA)
 
@@ -92,6 +93,9 @@ func StandardValidator(h http.Handler) http.Handler {
 
 }
 
+// CustomValidtor allows for calling a specific OPA instance and defining the package name
+// For example, to call a sidecar instead of the central OPA server and to only call
+// the cw/underwriting package instead of the full cw package.
 func CustomValidator(h http.Handler, url OPAURL, pkg string) http.Handler {
 	endpoint := fmt.Sprintf("%s/v1/data/%s", url, pkg)
 
