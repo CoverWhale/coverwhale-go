@@ -6,13 +6,21 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/CoverWhale/coverwhale-go/opa"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 	"github.com/CoverWhale/coverwhale-go/transports/http/middleware"
 	"github.com/CoverWhale/logr"
 )
 
 type Request struct {
-	SampleValue string `json:"sample_value"`
+	Vehicles []Vehicle `json:"vehicles"`
+}
+
+type Vehicle struct {
+	VIN      string `json:"vin"`
+	BodyType string `json:"body_type"`
+	Class    int    `json:"class"`
+	Amount   int    `json:"amount"`
 }
 
 func getRoutes(l *logr.Logger) []cwhttp.Route {
@@ -25,7 +33,7 @@ func getRoutes(l *logr.Logger) []cwhttp.Route {
 		{
 			Method:  http.MethodPost,
 			Path:    "/test-custom",
-			Handler: middleware.CustomValidator(http.HandlerFunc(test), middleware.SideCarOPA, "cw/underwriting"),
+			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidate, opa.SideCarOPA, "cw/underwriting/vehicles"),
 		},
 	}
 }
@@ -39,9 +47,41 @@ func test(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := fmt.Sprintf("%s", req.SampleValue)
+	var total int
 
+	for _, v := range req.Vehicles {
+		total += v.Amount
+	}
+
+	resp := fmt.Sprintf("they're worth $%d", total)
 	w.Write([]byte(resp))
+}
+
+// custom validation function to send to OPA.
+func opaValidate(data []byte) (opa.OPARequest, error) {
+	var req Request
+
+	if err := json.Unmarshal(data, &req); err != nil {
+		return opa.OPARequest{}, err
+	}
+
+	var vehicles []opa.Vehicle
+
+	for _, v := range req.Vehicles {
+		vehicles = append(vehicles, opa.Vehicle{
+			ID:       v.VIN,
+			BodyType: v.BodyType,
+			Class:    v.Class,
+			Amount:   v.Amount,
+		})
+	}
+
+	return opa.OPARequest{
+		Input: opa.Input{
+			Vehicles: vehicles,
+		},
+	}, nil
+
 }
 
 func main() {
