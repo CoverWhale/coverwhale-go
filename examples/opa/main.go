@@ -33,7 +33,7 @@ func getRoutes(l *logr.Logger) []cwhttp.Route {
 		{
 			Method:  http.MethodPost,
 			Path:    "/test-custom",
-			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidate, "http://opa.pa.jhbcomputers.com", "cw/underwriting/vehicles"),
+			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidate, opa.SideCarOPA, "cw/underwriting/vehicles"),
 		},
 	}
 }
