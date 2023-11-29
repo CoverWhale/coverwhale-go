@@ -37,6 +37,7 @@ func StandardValidator(h http.Handler) http.Handler {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
+		defer r.Body.Close()
 
 		// create two copies of request body since reading the body drains the reader
 		opaBody := io.NopCloser(bytes.NewBuffer(buf))
