@@ -13,7 +13,9 @@ import (
 )
 
 type Request struct {
-	Vehicles []Vehicle `json:"vehicles"`
+	Operation   string    `json:"operation"`
+	Commodities []string  `json:"commodities"`
+	Vehicles    []Vehicle `json:"vehicles"`
 }
 
 type Vehicle struct {
@@ -33,7 +35,7 @@ func getRoutes(l *logr.Logger) []cwhttp.Route {
 		{
 			Method:  http.MethodPost,
 			Path:    "/test-custom",
-			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidate, opa.SideCarOPA, "cw/underwriting/vehicles"),
+			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidate, opa.SideCarOPA, "cw/underwriting"),
 		},
 	}
 }
@@ -78,6 +80,15 @@ func opaValidate(data []byte) (opa.OPARequest, error) {
 
 	return opa.OPARequest{
 		Input: opa.Input{
+			Operation:   req.Operation,
+			Commodities: req.Commodities,
+			Drivers: []opa.Driver{
+				{
+					ID:         "123345",
+					Age:        23,
+					Experience: 3,
+				},
+			},
 			Vehicles: vehicles,
 		},
 	}, nil

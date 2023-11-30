@@ -20,12 +20,12 @@ type Result struct {
 }
 
 type Input struct {
-	State        string    `json:"state"`
-	BusinessType string    `json:"business_type"`
-	Commodities  []string  `json:"commodities"`
-	Drivers      []Driver  `json:"drivers"`
-	Vehicles     []Vehicle `json:"vehicles"`
-	Trailers     []Trailer `json:"trailers"`
+	State       string    `json:"state"`
+	Operation   string    `json:"operation"`
+	Commodities []string  `json:"commodities"`
+	Drivers     []Driver  `json:"drivers"`
+	Vehicles    []Vehicle `json:"vehicles"`
+	Trailers    []Trailer `json:"trailers"`
 }
 
 type Driver struct {
