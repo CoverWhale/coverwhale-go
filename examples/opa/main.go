@@ -37,6 +37,11 @@ func getRoutes(l *logr.Logger) []cwhttp.Route {
 			Path:    "/test-custom",
 			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidate, opa.SideCarOPA, "cw/underwriting"),
 		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/test-custom-decision",
+			Handler: middleware.CustomValidator(http.HandlerFunc(test), opaValidateDecision, opa.SideCarOPA, "cw/underwriting/decision"),
+		},
 	}
 }
 
@@ -61,6 +66,41 @@ func test(w http.ResponseWriter, r *http.Request) {
 
 // custom validation function to send to OPA.
 func opaValidate(data []byte) (opa.OPARequest, error) {
+	var req Request
+
+	if err := json.Unmarshal(data, &req); err != nil {
+		return opa.OPARequest{}, err
+	}
+
+	var vehicles []opa.Vehicle
+
+	for _, v := range req.Vehicles {
+		vehicles = append(vehicles, opa.Vehicle{
+			ID:       v.VIN,
+			BodyType: v.BodyType,
+			Class:    v.Class,
+			Amount:   v.Amount,
+		})
+	}
+
+	return opa.OPARequest{
+		Input: opa.Input{
+			Operation:   req.Operation,
+			Commodities: req.Commodities,
+			Drivers: []opa.Driver{
+				{
+					ID:         "123345",
+					Age:        23,
+					Experience: 3,
+				},
+			},
+			Vehicles: vehicles,
+		},
+	}, nil
+
+}
+
+func opaValidateDecision(data []byte) (opa.OPARequest, error) {
 	var req Request
 
 	if err := json.Unmarshal(data, &req); err != nil {

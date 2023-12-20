@@ -28,6 +28,8 @@ func init() {
 	viper.BindPFlag("server.disable_telemetry", serverCmd.Flags().Lookup("disable-telemetry"))
 	serverCmd.Flags().StringP("name", "n", "", "Application name")
 	serverCmd.MarkFlagRequired("name")
+	serverCmd.PersistentFlags().String("namespace", "default", "Namespace for deployment")
+	viper.BindPFlag("server.namespace", serverCmd.PersistentFlags().Lookup("namespace"))
 	viper.BindPFlag("server.name", serverCmd.Flags().Lookup("name"))
 	serverCmd.Flags().Bool("disable-deployment", false, "Disables Kubernetes deployment generation")
 	viper.BindPFlag("server.disable_deployment", serverCmd.Flags().Lookup("disable-deployment"))
@@ -35,10 +37,14 @@ func init() {
 	viper.BindPFlag("server.metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 	serverCmd.PersistentFlags().Bool("enable-nats", false, "Enables NATS integration")
 	viper.BindPFlag("server.enable_nats", serverCmd.PersistentFlags().Lookup("enable-nats"))
-	serverCmd.PersistentFlags().String("nats-subject", "", "Subject(s) to listen on")
+	serverCmd.PersistentFlags().String("nats-servers", "", "NATS serer urls")
 	viper.BindPFlag("server.nats_servers", serverCmd.PersistentFlags().Lookup("nats-servers"))
 	serverCmd.PersistentFlags().Bool("enable-graphql", false, "Enables GraphQL integration")
 	viper.BindPFlag("server.enable_graphql", serverCmd.PersistentFlags().Lookup("enable-graphql"))
+	serverCmd.PersistentFlags().String("container-registry", "example.com", "URL for container registry")
+	viper.BindPFlag("server.container_registry", serverCmd.PersistentFlags().Lookup("container-registry"))
+	serverCmd.PersistentFlags().String("domain", "example.com", "Domain for ingress URLs")
+	viper.BindPFlag("server.domain", serverCmd.PersistentFlags().Lookup("domain"))
 }
 
 type Delims struct {

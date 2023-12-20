@@ -25,6 +25,8 @@ type Config struct {
 }
 type Server struct {
 	Name              string `mapstructure:"name"`
+	Namespace         string `mapstructure:"namespace"`
+	Domain            string `mapstructure:"domain"`
 	Module            string
 	DisableTelemetry  bool   `mapstructure:"disable_telemetry"`
 	DisableDeployment bool   `mapstructure:"disable_deployment"`
@@ -33,6 +35,7 @@ type Server struct {
 	NatsSubject       string `mapstructure:"nats_subject"`
 	NatsServers       string `mapstructure:"nats_servers"`
 	EnableGraphql     bool   `mapstructure:"enable_graphql"`
+	ContainerRegistry string `mapstructure:"container_registry"`
 }
 
 func Execute() {

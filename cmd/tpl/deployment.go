@@ -58,17 +58,17 @@ deploy-local: k8s-up {{ if .EnableGraphql }}schema{{- end}} edgedb {{ if .Enable
 
 generate-yaml: {{ .Name }}ctl
 {{"\t"}}mkdir -p deployments/{dev,prod}
-{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class alb --ingress-annotations $(ANNOTATIONS) --ingress-tls --namespace prime \
-        --registry  005364446802.dkr.ecr.us-east-1.amazonaws.com --service-name {{ .Name }}-$(ENVIRONMENT) \
+{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class $(INGRESS_CLASS) --ingress-annotations $(ANNOTATIONS) $(INGRESS_TLS) --namespace {{ .Namespace }} \
+{{"\t"}}{{"\t"}}--registry  {{ .ContainerRegistry }} --service-name {{ .Name }}-$(ENVIRONMENT) {{ if .EnableNats }}--nats-urls {{ .NatsServers }} {{ end }} \
         --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
 
 generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
 {{"\t"}}mkdir -p deployments/dev
-{{"\t"}}ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.prime.coverwhale.dev TAG=latest ANNOTATIONS="alb.ingress.kubernetes.io/group.name"="dev-apps-internal","alb.ingress.kubernetes.io/scheme"="internal","alb.ingress.kubernetes.io/target-type"="ip","alb.ingress.kubernetes.io/certificate-arn"="arn:aws:acm:us-east-1:005364446802:certificate/6e4aca2c-7087-4625-8ee3-49c8dfc29f5b" make generate-yaml
+{{"\t"}}ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.{{ .Domain }} INGRESS_CLASS=nginx INGRESS_TLS=--ingress-tls TAG=latest ANNOTATIONS="cert-manager.io/cluster-issuer"="letsencrypt-prod" make generate-yaml
 
 generate-prod: {{ .Name }}ctl ## Generate prod environment yaml for Argo
 {{"\t"}}mkdir -p deployments/prod
-{{"\t"}}ENVIRONMENT=prod INGRESS={{ .Name }}.prime.coverwhale.com TAG=$(VERSION) make generate-yaml
+{{"\t"}}ENVIRONMENT=prod INGRESS_CLASS=nginx INGRESS_TLS=--ingress-tls ANNOTATIONS="cert-manager.io/cluster-issuer"="letsencrypt-prod" INGRESS={{ .Name }}.{{ .Domain }} TAG=$(VERSION) make generate-yaml
 
 k8s-up: ## Creates a local kubernetes cluster with a registry
 {{"\t"}}k3d registry create {{ .Name }}-registry --port 50000
@@ -197,7 +197,7 @@ on:
       - '**.go'
 
 env:
-  DOCKER_REPO: ${{ secrets.ECR_REGISTRY }}/[% .Name %]
+  DOCKER_REPO: ${{ env.ECR_REGISTRY }}/[% .Name %]
 permissions:
   id-token: write
   contents: read
@@ -218,9 +218,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::005364446802:role/GithubActionsPulumi
-          role-session-name: github-actions-pulumi
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ env.ROLE_ARN }}
+          role-session-name: ${{ env.ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
       - uses: aws-actions/amazon-ecr-login@v1
       - name: Build branch and push to ecr
         run: |
@@ -234,7 +234,7 @@ jobs:
         if: ${{ github.event_name == 'push' }}
         run: |
           git config --global user.name "${{ github.event.repository.name }} CI"
-          git config --global user.email "automations@coverwhale.com"
+          git config --global user.email "${{ env.USER_EMAIL }}"
           git add docs deployments
           git commit -m "update docs and manifests"
           git push
@@ -248,7 +248,7 @@ on:
     tags:
       - '*'
 env:
-  DOCKER_REPO: ${{ secrets.ECR_REGISTRY }}/[% .Name %]
+  DOCKER_REPO: ${{ env.ECR_REGISTRY }}/[% .Name %]
 permissions:
   id-token: write
   contents: read
@@ -277,9 +277,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::005364446802:role/GithubActionsPulumi
-          role-session-name: github-actions-pulumi
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ env.ROLE_ARN }}
+          role-session-name: ${{ env.ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
       - uses: aws-actions/amazon-ecr-login@v1
       - name: Build with version and latest and push to ECR
         run: |
@@ -291,7 +291,7 @@ jobs:
       - name: create manifests and update docs
         run: |
           git config --global user.name "${{ github.event.repository.name }} CI"
-          git config --global user.email "automation@users.noreply.github.com"
+          git config --global user.email "${{ env.USER_EMAIL }}"
           git add docs deployments
           git commit -m "update docs and manifests"
           git push origin HEAD:main

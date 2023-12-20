@@ -19,6 +19,13 @@ type Result struct {
 	Deny  []string `json:"deny,omitempty"`
 }
 
+// Decision should be called at a /decision endpoint.
+type Decision struct {
+	Allowed  bool     `json:"allowed"`
+	Denials  []string `json:"denials,omitempty"`
+	Carriers []string `json:"carriers,omitempty"`
+}
+
 type Input struct {
 	State       string    `json:"state"`
 	Operation   string    `json:"operation"`
