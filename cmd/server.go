@@ -37,7 +37,7 @@ func init() {
 	viper.BindPFlag("server.metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
 	serverCmd.PersistentFlags().Bool("enable-nats", false, "Enables NATS integration")
 	viper.BindPFlag("server.enable_nats", serverCmd.PersistentFlags().Lookup("enable-nats"))
-	serverCmd.PersistentFlags().String("nats-servers", "", "NATS serer urls")
+	serverCmd.PersistentFlags().String("nats-servers", "", "NATS server urls")
 	viper.BindPFlag("server.nats_servers", serverCmd.PersistentFlags().Lookup("nats-servers"))
 	serverCmd.PersistentFlags().Bool("enable-graphql", false, "Enables GraphQL integration")
 	viper.BindPFlag("server.enable_graphql", serverCmd.PersistentFlags().Lookup("enable-graphql"))
