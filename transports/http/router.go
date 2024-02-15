@@ -28,7 +28,6 @@ import (
 	"github.com/CoverWhale/coverwhale-go/metrics"
 	cwmiddleware "github.com/CoverWhale/coverwhale-go/transports/http/middleware"
 	"github.com/CoverWhale/logr"
-	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -39,8 +38,6 @@ var ErrInternalError = fmt.Errorf("internal server error")
 
 // ServerOption is a functional option to modify the server
 type ServerOption func(*Server)
-
-type MiddlewareOption func(*chi.Mux)
 
 // handlerWithError is a normal HTTP handler but returns an error
 type handlerWithError func(http.ResponseWriter, *http.Request) error
@@ -57,7 +54,7 @@ type ErrHandler struct {
 type Server struct {
 	apiServer      *http.Server
 	Logger         *logr.Logger
-	Router         *chi.Mux
+	Router         *http.ServeMux
 	Exporter       *metrics.Exporter
 	traceShutdown  func(context.Context) error
 	TracerProvider *trace.TracerProvider
@@ -76,7 +73,7 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 
 // NewHTTPServer initializes and returns a new Server
 func NewHTTPServer(opts ...ServerOption) *Server {
-	r := chi.NewRouter()
+	r := http.NewServeMux()
 
 	s := &Server{
 		Logger:   logr.NewLogger(),
@@ -97,7 +94,7 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 	s.getHealth()
 	s.apiServer.Handler = r
 
-	s.Router.Method("GET", "/metrics", promhttp.Handler())
+	s.Router.Handle("GET /metrics", promhttp.Handler())
 
 	return s
 }
@@ -110,10 +107,10 @@ func HandleWithContext[T any](h func(http.ResponseWriter, *http.Request, T), ctx
 
 func (s *Server) getHealth() {
 	if s.TracerProvider != nil {
-		s.Router.Mount("/healthz", otelhttp.NewHandler(http.HandlerFunc(healthz), "healthz:GET"))
+		s.Router.Handle("GET /healthz", otelhttp.NewHandler(http.HandlerFunc(healthz), "healthz:GET"))
 		return
 	}
-	s.Router.Get("/healthz", healthz)
+	s.Router.Handle("GET /healthz", http.HandlerFunc(healthz))
 }
 
 // SetServerPort sets the server listening port
@@ -171,32 +168,41 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
-	subRouter := chi.NewRouter()
+	// HTTP Muxer requires the trailing slash for the prefix but hen we remove the slash in the strip prefix
+	var prefixWithSlash string
+	if strings.HasSuffix(prefix, "/") {
+		prefixWithSlash = prefix
+	} else {
+		prefixWithSlash = fmt.Sprintf("%s/", prefix)
+	}
+	stripped := strings.TrimSuffix(prefix, "/")
+
+	subRouter := http.NewServeMux()
 	// we need to register each vector with a unique name, for now its a combination of the prefix and route path
 	replacer := strings.NewReplacer("{", "", "}", "", "/", "_", "[", "_", "]", "_", "-", "_")
 	name := fmt.Sprintf("%s%s", replacer.Replace(prefix), replacer.Replace(routes[0].Path))
 	counter := metrics.NewCounterVec(fmt.Sprintf("http_requests%s", name), "HTTP requests by status, path, and method", []string{"code", "method", "path"})
 	hist := metrics.NewHistogramVec(fmt.Sprintf("http_request_latency%s", name), "HTTP latency by status, path, and method", []string{"code", "method", "path"})
 
-	// wrap subrouter to catch all middleware and total metrics for the subrouter
-	s.Router.Mount(prefix, cwmiddleware.CodeStats(subRouter, counter, hist))
-
-	subRouter.Use(cwmiddleware.RequestID)
+	reqWrapped := cwmiddleware.RequestID(subRouter)
 
 	for _, m := range middleware {
-		subRouter.Use(m)
+		m(reqWrapped)
 	}
 
+	// wrap subrouter to catch all middleware and total metrics for the subrouter
 	for _, v := range routes {
 		if s.traceShutdown != nil {
 			m := fmt.Sprintf("%v:%v", v.Path, v.Method)
-			subRouter.Method(v.Method, v.Path, otelhttp.NewHandler(v.Handler, m))
+			subRouter.Handle(fmt.Sprintf("%s %s", v.Method, v.Path), otelhttp.NewHandler(v.Handler, m))
 		} else {
-			subRouter.Method(v.Method, v.Path, v.Handler)
+			subRouter.Handle(fmt.Sprintf("%s %s", v.Method, v.Path), v.Handler)
 		}
 	}
 
 	s.Exporter.Metrics = append(s.Exporter.Metrics, counter, hist)
+
+	s.Router.Handle(prefixWithSlash, cwmiddleware.CodeStats(http.StripPrefix(stripped, reqWrapped), counter, hist))
 
 	return s
 }
