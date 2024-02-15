@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -71,11 +72,14 @@ func TestNewHTTPServer(t *testing.T) {
 }
 
 func TestRegisterSubrouter(t *testing.T) {
-	prefix := "/test"
+	prefix := "/api/v1/"
 	routes := []Route{
 		{
 			Method: http.MethodGet,
 			Path:   "/test",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}),
 		},
 	}
 
@@ -83,14 +87,21 @@ func TestRegisterSubrouter(t *testing.T) {
 
 	s.RegisterSubRouter(prefix, routes)
 
-	paths := s.Router.Routes()
-
-	for _, path := range paths {
-		if path.Pattern == "/healthz" {
+	for _, route := range routes {
+		if route.Path == "/healthz" {
 			continue
 		}
-		if path.Pattern != fmt.Sprintf("%s/*", prefix) {
-			t.Errorf("expected prefix %s but got %s", fmt.Sprintf("%s/*", prefix), path)
+
+		req := &http.Request{
+			Method: route.Method,
+			URL: &url.URL{
+				Path: fmt.Sprintf("%s%s", prefix, route.Path),
+			},
+		}
+
+		_, pattern := s.Router.Handler(req)
+		if pattern != prefix {
+			t.Errorf("expected prefix %s but got %s", prefix, pattern)
 		}
 	}
 }

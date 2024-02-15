@@ -22,7 +22,6 @@ import (
 
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 	"github.com/CoverWhale/logr"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -37,7 +36,9 @@ func main() {
 
 	cwServer := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
-	).RegisterSubRouter("/api/v1", h.buildRoutes(l), middleware.Logger, middleware.Throttle(1))
+	).RegisterSubRouter("/api/v1", h.buildRoutes(l))
+	// CoverWhale-go accepts chi middleware also
+	// .RegisterSubRouter("/api/v1", h.buildRoutes(l), middleware.Logger, middleware.Throttle(1))
 
 	h.Server = cwServer
 

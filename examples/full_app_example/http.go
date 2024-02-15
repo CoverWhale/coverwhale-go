@@ -16,27 +16,40 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 	"github.com/CoverWhale/logr"
-	"github.com/go-chi/chi/v5"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 type clientHandlerFunc func(http.ResponseWriter, *http.Request, ClientManager) error
 
+func getErrorDetails(err error) (int, string) {
+	clientError, ok := err.(*cwhttp.ClientError)
+	if !ok {
+		log.Printf("An error ocurred: %v", err)
+		return 500, http.StatusText(http.StatusInternalServerError)
+	}
+
+	return clientError.Status, clientError.Details
+}
+
 func clientHandler(h clientHandlerFunc, cm ClientManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := h(w, r, cm)
-
 		if err == nil {
 			return
 		}
 
-		log.Println(err)
-		return
+		status, body := getErrorDetails(err)
+
+		apiErrDetails := fmt.Sprintf(`{"error": "%s"}`, body)
+
+		w.WriteHeader(status)
+		w.Write([]byte(apiErrDetails))
 	}
 }
 
@@ -67,7 +80,7 @@ func (a *Application) createProduct(w http.ResponseWriter, r *http.Request) erro
 }
 
 func getProductByID(w http.ResponseWriter, r *http.Request, pm ProductManager) {
-	id := chi.URLParam(r, "id")
+	id := r.PathValue("id")
 	txn := newrelic.FromContext(r.Context())
 	s := newrelic.DatastoreSegment{
 		StartTime:  newrelic.StartSegmentNow(txn),
@@ -107,12 +120,12 @@ func createClient(w http.ResponseWriter, r *http.Request, cm ClientManager) erro
 	var c Client
 
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		return err
+		return cwhttp.NewClientError(err, http.StatusBadRequest)
 	}
 
 	a, err := NewClient(c.Name, SetClientProducts(c.Products))
 	if err != nil {
-		return err
+		return cwhttp.NewClientError(err, http.StatusBadRequest)
 	}
 
 	txn := newrelic.FromContext(r.Context())
@@ -122,7 +135,9 @@ func createClient(w http.ResponseWriter, r *http.Request, cm ClientManager) erro
 		Collection: "clients",
 		Operation:  "create",
 	}
-	a.Save(cm)
+	if err := a.Save(cm); err != nil {
+		return err
+	}
 	s.End()
 
 	if err := json.NewEncoder(w).Encode(a); err != nil {
@@ -151,7 +166,7 @@ func getClients(w http.ResponseWriter, r *http.Request, cm ClientManager) error 
 }
 
 func getClientByID(w http.ResponseWriter, r *http.Request, cm ClientManager) error {
-	id := chi.URLParam(r, "id")
+	id := r.PathValue("id")
 	txn := newrelic.FromContext(r.Context())
 	s := newrelic.DatastoreSegment{
 		StartTime:  newrelic.StartSegmentNow(txn),

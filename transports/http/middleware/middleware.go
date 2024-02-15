@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/CoverWhale/logr"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/segmentio/ksuid"
 )
@@ -53,17 +52,31 @@ func RequestID(h http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// StatusRec wraps the http.ResponseWriter to capture the status code
+type StatusRec struct {
+	http.ResponseWriter
+	Status int
+}
+
+// WriteHeader captures the status code
+func (r *StatusRec) WriteHeader(status int) {
+	r.Status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+// CodesStats is a middleware that captures the status code and method of the request for metrics collection with Prometheus
 func CodeStats(h http.Handler, vec *prometheus.CounterVec, hist *prometheus.HistogramVec) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		rec := &StatusRec{
+			ResponseWriter: w,
+			Status:         200,
+		}
 		start := time.Now()
-		h.ServeHTTP(ww, r)
+		h.ServeHTTP(rec, r)
 
-		vec.WithLabelValues(fmt.Sprintf("%d", ww.Status()), r.Method, r.URL.Path).Inc()
-		hist.WithLabelValues(fmt.Sprintf("%d", ww.Status()), r.Method, r.URL.Path).Observe(float64(time.Since(start).Seconds()))
-
+		vec.WithLabelValues(fmt.Sprintf("%d", rec.Status), r.Method, r.URL.Path).Inc()
+		hist.WithLabelValues(fmt.Sprintf("%d", rec.Status), r.Method, r.URL.Path).Observe(float64(time.Since(start).Seconds()))
 	}
 
 	return http.HandlerFunc(fn)
-
 }

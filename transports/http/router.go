@@ -168,6 +168,15 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // RegisterSubRouter creates a subrouter based on a path and a slice of routes. Any middlewares passed in will be mounted to the sub router
 func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...func(http.Handler) http.Handler) *Server {
+	// HTTP Muxer requires the trailing slash for the prefix but hen we remove the slash in the strip prefix
+	var prefixWithSlash string
+	if strings.HasSuffix(prefix, "/") {
+		prefixWithSlash = prefix
+	} else {
+		prefixWithSlash = fmt.Sprintf("%s/", prefix)
+	}
+	stripped := strings.TrimSuffix(prefix, "/")
+
 	subRouter := http.NewServeMux()
 	// we need to register each vector with a unique name, for now its a combination of the prefix and route path
 	replacer := strings.NewReplacer("{", "", "}", "", "/", "_", "[", "_", "]", "_", "-", "_")
@@ -180,8 +189,8 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 	for _, m := range middleware {
 		m(reqWrapped)
 	}
-	// wrap subrouter to catch all middleware and total metrics for the subrouter
 
+	// wrap subrouter to catch all middleware and total metrics for the subrouter
 	for _, v := range routes {
 		if s.traceShutdown != nil {
 			m := fmt.Sprintf("%v:%v", v.Path, v.Method)
@@ -193,9 +202,7 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 
 	s.Exporter.Metrics = append(s.Exporter.Metrics, counter, hist)
 
-	stripped := strings.TrimRight(prefix, "/")
-
-	s.Router.Handle(prefix, cwmiddleware.CodeStats(http.StripPrefix(stripped, reqWrapped), counter, hist))
+	s.Router.Handle(prefixWithSlash, cwmiddleware.CodeStats(http.StripPrefix(stripped, reqWrapped), counter, hist))
 
 	return s
 }

@@ -6,7 +6,6 @@ require (
 	cuelang.org/go v0.4.3
 	github.com/99designs/gqlgen v0.17.43
 	github.com/CoverWhale/logr v0.0.0-20230811135117-90a42e57497b
-	github.com/go-chi/chi/v5 v5.0.8
 	github.com/nats-io/nats.go v1.33.0
 	github.com/newrelic/go-agent/v3 v3.20.3
 	github.com/prometheus/client_golang v1.15.1

@@ -25,7 +25,6 @@ import (
 	"github.com/CoverWhale/coverwhale-go/metrics"
 	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
 	"github.com/CoverWhale/logr"
-	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 )
@@ -52,11 +51,11 @@ func doMore(ctx context.Context) {
 }
 
 func testing(w http.ResponseWriter, r *http.Request) error {
-	id := chi.URLParam(r, "testID")
+	id := r.PathValue("testID")
 	ie := r.Header.Get("internal-error")
 	ce := r.Header.Get("client-error")
 
-	fmt.Println(id)
+	logr.Info(id)
 
 	if ie != "" {
 		return fmt.Errorf("this is an internal error")
@@ -82,7 +81,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	sleep := time.Duration(i) * time.Millisecond
 	time.Sleep(sleep)
 
-	// fake call to somethign that takes a long time
+	// fake call to something that takes a long time
 	doMore(ctx)
 
 	resp := fmt.Sprintf("this works and took %dms\n", sleep.Milliseconds())
