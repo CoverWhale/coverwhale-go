@@ -127,7 +127,7 @@ func main() {
 		cwhttp.SetTracerProvider(tp),
 	)
 
-	s.RegisterSubRouter("/api/v1", getRoutes(s.Logger), exampleMiddleware(s.Logger))
+	s.RegisterSubRouter("/api/v1/", getRoutes(s.Logger), exampleMiddleware(s.Logger))
 
 	errChan := make(chan error, 1)
 	go s.Serve(errChan)
