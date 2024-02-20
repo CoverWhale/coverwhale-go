@@ -193,7 +193,7 @@ func ServerStart() []byte {
 
 import (
     "context"
-    {{ if .EnableNats }}strings{{ end }}
+    {{ if .EnableNats }}"strings"{{ end }}
 
     "{{ .Module }}/server"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
@@ -248,14 +248,19 @@ func start(cmd *cobra.Command, args []string ) error {
 
     {{ if .EnableNats }}
     n := cwnats.NewNATSClient("prime.{{ .Name }}.>", strings.Split(viper.GetString("nats_urls"), ","){{ if .EnableGraphql }},
-        cwnats.SetGraphQLExecutableSchema(graph.NewExecutableSchema(graph.Config{Resolvers: resolver})),{{ end }}
-    )
+        cwnats.SetGraphQLExecutableSchema(graph.NewExecutableSchema(graph.Config{Resolvers: resolver})),{{ end }})
 
     if err := n.Connect(); err != nil {
         return err
     }
 
     {{ if .EnableGraphql }}go n.Resolve(errChan){{ end }}
+
+	  svc, err := server.NewMicro(n.Conn)
+	  if err != nil {
+		  return err
+	  }
+	  defer svc.Stop()
 
     server.Watch(n, "prime.{{ .Name }}.*"){{ end }}
 
