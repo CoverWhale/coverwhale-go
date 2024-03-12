@@ -34,7 +34,7 @@ type ClientError struct {
 	Details string
 }
 
-func (c *ClientError) Error() string {
+func (c ClientError) Error() string {
 	return c.Details
 }
 
@@ -51,7 +51,7 @@ func (c ClientError) As(target error) bool {
 	return ok
 }
 
-func NewclientError(err error, code int) ClientError {
+func NewClientError(err error, code int) ClientError {
 	return ClientError{
 		Code:    code,
 		Details: err.Error(),
