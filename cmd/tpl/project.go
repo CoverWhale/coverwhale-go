@@ -192,15 +192,19 @@ func ServerStart() []byte {
 	return []byte(`package cmd 
 
 import (
+    {{ if .EnableHTTP }}
     "context"
-    {{ if .EnableNats }}"strings"{{ end }}
 
-    "{{ .Module }}/server"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-    {{ if .EnableNats }}cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"{{ end }}
+    {{ end }}
+    "{{ .Module }}/server"
+    {{ if .EnableNats }}
+    cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
+    "github.com/nats-io/nats.go/micro"
+    {{- end }}
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
-    {{ if not .DisableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
+    {{ if and .EnableHTTP not .DisableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"{{- end }}
     {{ if .EnableGraphql }}"github.com/99designs/gqlgen/graphql/handler"
     "{{ .Module }}/graph"{{- end}}
@@ -219,6 +223,7 @@ func init() {
 }
 
 func start(cmd *cobra.Command, args []string ) error {
+    {{ if .EnableHTTP }}
     ctx := context.Background()
 
     {{ if not .DisableTelemetry -}}
@@ -243,26 +248,37 @@ func start(cmd *cobra.Command, args []string ) error {
     )
 
     errChan := make(chan error, 1)
+    {{- end }}
 
     {{ if .EnableGraphql }}resolver := &graph.Resolver{}{{ end }}
 
-    {{ if .EnableNats }}
-    n := cwnats.NewNATSClient("prime.{{ .Name }}.>", strings.Split(viper.GetString("nats_urls"), ","){{ if .EnableGraphql }},
-        cwnats.SetGraphQLExecutableSchema(graph.NewExecutableSchema(graph.Config{Resolvers: resolver})),{{ end }})
-
-    if err := n.Connect(); err != nil {
-        return err
+    options := cwnats.MicroOptions{
+	Servers:     viper.GetString("nats_urls"),
+	BaseSubject: "prime.{{ .Name }}",
+	Config: micro.Config{
+		Name:        "{{ .Name }}",
+		Version:     "0.0.1",
+		Description: "An example application",
+		Endpoint: &micro.EndpointConfig{
+			Subject: "prime.{{ .Name }}.generic",
+			Handler: micro.HandlerFunc(func(r micro.Request) { r.Respond([]byte("responding")) }),
+		},
+	},
     }
 
-    {{ if .EnableGraphql }}go n.Resolve(errChan){{ end }}
+    ms, err := cwnats.NewMicroService(options)
+    if err != nil {
+	logr.Fatal(err)
+    }
 
-	  svc, err := server.NewMicro(n.Conn)
-	  if err != nil {
-		  return err
-	  }
-	  defer svc.Stop()
+    ms.Service.AddEndpoint("foo", cwnats.ErrorHandler(server.GetFoo), micro.WithEndpointSubject("prime.{{ .Name }}.foo"))
 
-    server.Watch(n, "prime.{{ .Name }}.*"){{ end }}
+    {{ if not .EnableHTTP }}
+    ms.HandleNotify()
+    {{- end }}
+
+    {{ if .EnableHTTP }}
+    server.Watch(n, "prime.{{ .Name }}.*")
 
     s.RegisterSubRouter("/api/v1", server.GetRoutes(s.Logger), server.ExampleMiddleware(s.Logger))
     {{ if .EnableGraphql }}
@@ -273,6 +289,7 @@ func start(cmd *cobra.Command, args []string ) error {
 
     go s.Serve(errChan)
     s.AutoHandleErrors(ctx, errChan)
+    {{- end }}
 
     return nil
 } 

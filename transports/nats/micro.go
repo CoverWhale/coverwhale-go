@@ -46,7 +46,7 @@ func (c *ClientError) CodeString() string {
 	return strconv.Itoa(c.Code)
 }
 
-func (c ClientError) As(target error) bool {
+func (c ClientError) As(target any) bool {
 	_, ok := target.(*ClientError)
 	return ok
 }

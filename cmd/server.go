@@ -49,6 +49,8 @@ func init() {
 	viper.BindPFlag("server.disable_deployment", serverCmd.Flags().Lookup("disable-deployment"))
 	serverCmd.PersistentFlags().String("metrics-url", "localhost:4318", "Endpoint for metrics exporter")
 	viper.BindPFlag("server.metrics_url", serverCmd.PersistentFlags().Lookup("metrics-url"))
+	serverCmd.PersistentFlags().Bool("enable-http", false, "Enables HTTP integration")
+	viper.BindPFlag("server.enable_http", serverCmd.PersistentFlags().Lookup("enable-http"))
 	serverCmd.PersistentFlags().Bool("enable-nats", false, "Enables NATS integration")
 	viper.BindPFlag("server.enable_nats", serverCmd.PersistentFlags().Lookup("enable-nats"))
 	serverCmd.PersistentFlags().String("nats-servers", "", "NATS server urls")
@@ -95,7 +97,6 @@ func server(cmd *cobra.Command, args []string) error {
 		createRoot(dd),
 		createServer(dd),
 		createServerStart(dd),
-		createServerPackage(dd),
 		createVersion(dd),
 		createMakefile(dd),
 		createDockerfile(dd),
@@ -109,6 +110,12 @@ func server(cmd *cobra.Command, args []string) error {
 		createEdgeDBInfra(dd),
 		createFlags(dd),
 		createDocs(dd),
+	}
+
+	if cfg.Server.EnableHTTP {
+		opts = append(opts,
+			createServerPackage(dd),
+		)
 	}
 
 	// deployment
