@@ -15,74 +15,55 @@
 package tpl
 
 func Nats() []byte {
-	return []byte(`package server
-import (
-  "context"
-	"fmt"
-	"log"
+	return []byte(`{{ $tick := "` + "`" + `" -}}
+package service
 
-  cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
+import (
+	"encoding/json"
+
+	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
 	"github.com/CoverWhale/logr"
-	"github.com/nats-io/nats.go"
-  "github.com/nats-io/nats.go/micro"
+	"github.com/nats-io/nats.go/micro"
 )
 
-func handleRequest(req micro.Request) {
-	logr.Infof("received request on %s", req.Subject())
-
-	// you can return errors like this
-	// if err != nil {
-	//  req.Error("400", err.String(), nil)
-	// }
-	// return
-
-	ctx := context.Background()
-	doMore(ctx)
-
-	response := fmt.Sprintf("%s yourself", string(req.Data()))
-
-	req.Respond([]byte(response))
+type MathRequest struct {
+	A int {{ $tick }}json:"a"{{ $tick }}
+	B int {{ $tick }}json:"b"{{ $tick }}
 }
 
-func NewMicro(conn *nats.Conn) (micro.Service, error) {
-	config := micro.Config{
-		Name:        "{{ .Name }}",
-		Version:     "0.0.1",
-		Description: "{{ .Name }}'s description",
-		Endpoint: &micro.EndpointConfig{
-			Subject: "prime.{{ .Name }}.doit",
-			Handler: micro.HandlerFunc(handleRequest),
-		},
-	}
-
-	svc, err := micro.AddService(conn, config)
-	if err != nil {
-		return svc, err
-	}
-
-	group := svc.AddGroup("prime.{{ .Name }}")
-	if err := group.AddEndpoint("doit", micro.HandlerFunc(handleRequest)); err != nil {
-		return svc, err
-	}
-
-	return svc, nil
+type MathResponse struct {
+	Result int {{ $tick }}json:"result"{{ $tick }}
 }
 
-func Watch(n *cwnats.NATSClient, s string) {
-	logr.Infof("watching for requests on %s", s)
-	_, err := n.Conn.Subscribe(s, HandleMessage)
-	if err != nil {
-		log.Printf("Error in subscribing: %v", err)
-	}
+func SpecificHandler(logger *logr.Logger, r micro.Request) error {
+	r.Respond([]byte("in the specific handler"))
+
+	return nil
 }
 
-func HandleMessage(m *nats.Msg) {
-	logr.Infof("recevied request on %s", m.Subject)
-
-	switch m.Subject {
-	case "prime.{{ .Name }}.pub":
-        fmt.Printf("received pub %s\n", string(m.Data))
+func Add(logger *logr.Logger, r micro.Request) error {
+	var mr MathRequest
+	if err := json.Unmarshal(r.Data(), &mr); err != nil {
+		return cwnats.NewClientError(err, 400)
 	}
+
+	resp := MathResponse{Result: mr.A + mr.B}
+
+	r.RespondJSON(resp)
+
+	return nil
+}
+
+func Subtract(logger *logr.Logger, r micro.Request) error {
+	var mr MathRequest
+	if err := json.Unmarshal(r.Data(), &mr); err != nil {
+		return cwnats.NewClientError(err, 400)
+	}
+
+	resp := MathResponse{Result: mr.A - mr.B}
+
+	r.RespondJSON(resp)
+	return nil
 }
 `)
 }

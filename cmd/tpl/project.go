@@ -37,38 +37,38 @@ func init() {
 `)
 }
 
-func Server() []byte {
+func Service() []byte {
 	return []byte(`package cmd
 
 import (
     "github.com/spf13/cobra"
 )
 
-var serverCmd = &cobra.Command{
-    Use:   "server",
-    Short: "subcommand to control the server",
+var serviceCmd = &cobra.Command{
+    Use:   "service",
+    Short: "subcommand to control the service",
     // PersistentPostRun is used here because this is just a subcommand with no run function
-    PersistentPreRun: bindServerCmdFlags,
+    PersistentPreRun: bindServiceCmdFlags,
 }
 
 func init() {
-    rootCmd.AddCommand(serverCmd)
-    serverFlags(serverCmd)
-    {{ if .EnableNats }}natsFlags(serverCmd){{ end }}
+    rootCmd.AddCommand(serviceCmd)
+    serviceFlags(serviceCmd)
+    natsFlags(serviceCmd)
 }
 
-func bindServerCmdFlags(cmd *cobra.Command, args []string) {
-    bindServerFlags(cmd)
-    {{ if .EnableNats }}bindNatsFlags(cmd){{ end}}
+func bindServiceCmdFlags(cmd *cobra.Command, args []string) {
+    bindServiceFlags(cmd)
+    bindNatsFlags(cmd)
 }
 `)
 }
 
-func ServerPackage() []byte {
-	return []byte(`package server
+func ServicePackage() []byte {
+	return []byte(`package service
 
 import (
-    {{ if not .DisableTelemetry -}}
+    {{ if .EnableTelemetry -}}
     "context"
     {{- end }}
     "fmt"
@@ -80,7 +80,7 @@ import (
     "github.com/99designs/gqlgen/graphql/playground"
     "github.com/CoverWhale/logr"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-    {{ if not .DisableTelemetry -}}
+    {{ if .EnableTelemetry -}}
     "github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/attribute"
     {{- end }}
@@ -119,7 +119,7 @@ func GetApiQuery(srv *handler.Server) []cwhttp.Route {
 	}
 }
 
-{{ if not .DisableTelemetry -}}
+{{ if not .EnableTelemetry -}}
 func doMore(ctx context.Context) {
     // create new span from context
     _, span := metrics.NewTracer(ctx, "more sleepy")
@@ -141,7 +141,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
         return cwhttp.NewClientError(fmt.Errorf("uh oh spaghettios"), 400)
     }
     
-    {{ if not .DisableTelemetry -}}
+    {{ if .EnableTelemetry -}}
     // get new span
     ctx, span := metrics.NewTracer(r.Context(), "sleepytime")
     
@@ -159,7 +159,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
     sleep := time.Duration(i) * time.Millisecond
     time.Sleep(sleep)
     
-    {{ if not .DisableTelemetry -}}
+    {{ if .EnableTelemetry -}}
     // fake call to somethign that takes a long time
     doMore(ctx)
     {{- end }}
@@ -188,19 +188,24 @@ func ExampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
 `)
 }
 
-func ServerStart() []byte {
+func ServiceStart() []byte {
 	return []byte(`package cmd 
 
 import (
+    {{ if .EnableHTTP }}
     "context"
-    {{ if .EnableNats }}"strings"{{ end }}
 
-    "{{ .Module }}/server"
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-    {{ if .EnableNats }}cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"{{ end }}
+    {{ end }}
+    "{{ .Module }}/service"
+    "github.com/CoverWhale/logr"
+    "github.com/invopop/jsonschema"
+    "github.com/nats-io/nats.go/micro"
+    "github.com/nats-io/nats.go"
+    cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
-    {{ if not .DisableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
+    {{ if and .EnableHTTP .EnableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"{{- end }}
     {{ if .EnableGraphql }}"github.com/99designs/gqlgen/graphql/handler"
     "{{ .Module }}/graph"{{- end}}
@@ -208,20 +213,22 @@ import (
 
 var startCmd = &cobra.Command{
 	Use:          "start",
-	Short:        "starts the server",
+	Short:        "starts the service",
 	RunE:         start,
 	SilenceUsage: true,
 }
 
 func init() {
-	// attach start subcommand to server subcommand
-	serverCmd.AddCommand(startCmd)
+	// attach start subcommand to service subcommand
+	serviceCmd.AddCommand(startCmd)
 }
 
 func start(cmd *cobra.Command, args []string ) error {
+    logger := logr.NewLogger()
+    {{ if .EnableHTTP }}
     ctx := context.Background()
 
-    {{ if not .DisableTelemetry -}}
+    {{ if .EnableTelemetry -}}
     // create new metrics exporter
     exp, err := metrics.NewOTLPExporter(ctx, "{{ .MetricsUrl }}", otlptracehttp.WithInsecure())
     if err != nil {
@@ -237,45 +244,91 @@ func start(cmd *cobra.Command, args []string ) error {
 
     s := cwhttp.NewHTTPServer(
         cwhttp.SetServerPort(viper.GetInt("port")),
-        {{ if not .DisableTelemetry -}}
+        {{ if .EnableTelemetry -}}
         cwhttp.SetTracerProvider(tp),
         {{- end }}
     )
 
     errChan := make(chan error, 1)
+    {{- end }}
 
-    {{ if .EnableGraphql }}resolver := &graph.Resolver{}{{ end }}
+    {{ if .EnableGraphql }}resolver := &graph.Resolver{}{{- end }}
 
-    {{ if .EnableNats }}
-    n := cwnats.NewNATSClient("prime.{{ .Name }}.>", strings.Split(viper.GetString("nats_urls"), ","){{ if .EnableGraphql }},
-        cwnats.SetGraphQLExecutableSchema(graph.NewExecutableSchema(graph.Config{Resolvers: resolver})),{{ end }})
-
-    if err := n.Connect(); err != nil {
-        return err
+    config := micro.Config{
+    	Name:        "{{ .Name }}",
+    	Version:     "0.0.1",
+    	Description: "An example application",
     }
+    
+    nc, err := nats.Connect(viper.GetString("nats_urls"))
+    if err != nil {
+    	logr.Fatal(err)
+    }
+    defer nc.Close()
 
-    {{ if .EnableGraphql }}go n.Resolve(errChan){{ end }}
+    logger.SetOutput(cwnats.NewNatsLogger("prime.logs.{{ .Name }}", nc))
+    
+    svc, err := micro.AddService(nc, config)
+    if err != nil {
+    	logr.Fatal(err)
+    }
+    
+    // add a singular handler as an endpoint
+    svc.AddEndpoint("specific", cwnats.ErrorHandler(logger, service.SpecificHandler), micro.WithEndpointSubject("prime.services.{{ .Name }}.*.specific.get"))
+    
+    // add a handler group
+    grp := svc.AddGroup("prime.services.{{ .Name }}.*.math", micro.WithGroupQueueGroup("{{ .Name }}"))
+    grp.AddEndpoint("add",
+    	cwnats.ErrorHandler(logger, service.Add),
+    	micro.WithEndpointMetadata(map[string]string{
+    		"description":     "adds two numbers",
+    		"format":          "application/json",
+    		"request_schema":  schemaString(&service.MathRequest{}),
+    		"response_schema": schemaString(&service.MathResponse{}),
+    	}),
+	micro.WithEndpointSubject("add.get"),
+    )
+    grp.AddEndpoint("subtract",
+    	cwnats.ErrorHandler(logger, service.Subtract),
+    	micro.WithEndpointMetadata(map[string]string{
+    		"description":     "subtracts two numbers",
+    		"format":          "application/json",
+    		"request_schema":  schemaString(&service.MathRequest{}),
+    		"response_schema": schemaString(&service.MathResponse{}),
+    	}),
+	micro.WithEndpointSubject("subtract.get"),
+    )
+    
+    {{ if not .EnableHTTP }}
+    cwnats.HandleNotify(svc)
+    {{- end }}
 
-	  svc, err := server.NewMicro(n.Conn)
-	  if err != nil {
-		  return err
-	  }
-	  defer svc.Stop()
+    {{ if .EnableHTTP }}
+    service.Watch(n, "prime.{{ .Name }}.*")
 
-    server.Watch(n, "prime.{{ .Name }}.*"){{ end }}
-
-    s.RegisterSubRouter("/api/v1", server.GetRoutes(s.Logger), server.ExampleMiddleware(s.Logger))
+    s.RegisterSubRouter("/api/v1", service.GetRoutes(s.Logger), service.ExampleMiddleware(s.Logger))
     {{ if .EnableGraphql }}
     srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
-    s.RegisterSubRouter("/", server.GetPlayground(srv))
-    s.RegisterSubRouter("/api/v1/graphql", server.GetApiQuery(srv))
-    {{- end}}
+    s.RegisterSubRouter("/", service.GetPlayground(srv))
+    s.RegisterSubRouter("/api/v1/graphql", service.GetApiQuery(srv))
+    {{- end }}
 
     go s.Serve(errChan)
     s.AutoHandleErrors(ctx, errChan)
+    {{- end }}
 
     return nil
 } 
+
+func schemaString(s any) string {
+    schema := jsonschema.Reflect(s)
+    data, err := schema.MarshalJSON()
+    if err != nil {
+    	logr.Fatal(err)
+    }
+    
+    return string(data)
+}
 `)
 }
 
@@ -401,7 +454,6 @@ import (
 // The answer here is to not use init() and instead use something like PersistentPreRun to bind the
 // viper values. Using init for the cobra flags is ok, they are only in here to limit duplication of names.
 
-{{ if .EnableNats }}
 // bindNatsFlags binds nats flag values to viper
 func bindNatsFlags(cmd *cobra.Command) {
 	viper.BindPFlag("nats_urls", cmd.Flags().Lookup("nats-urls"))
@@ -411,17 +463,16 @@ func bindNatsFlags(cmd *cobra.Command) {
 func natsFlags(cmd *cobra.Command) {
     cmd.PersistentFlags().String("nats-urls", "nats://localhost:4222", "NATS server URL(s)")
 }
-{{ end }}
 
-// bindServerFlags binds the secret flag values to viper
-func bindServerFlags(cmd *cobra.Command) {
+// bindServiceFlags binds the secret flag values to viper
+func bindServiceFlags(cmd *cobra.Command) {
     viper.BindPFlag("port", cmd.Flags().Lookup("port"))
     viper.BindPFlag("enable_verification", cmd.Flags().Lookup("enable-verification"))
     viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
 }
 
-// sererFlags adds the server flags to the passed in command
-func serverFlags(cmd *cobra.Command) {
+// sererFlags adds the service flags to the passed in command
+func serviceFlags(cmd *cobra.Command) {
     cmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
     cmd.PersistentFlags().Bool("enable-verification", false, "Enable driver verification")
     cmd.PersistentFlags().String("tempo-url", "", "URL for Tempo")
@@ -455,8 +506,8 @@ func init() {
     deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls")
     deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name")
     deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
-    {{ if .EnableNats }}natsFlags(deployCmd){{ end }}
-    serverFlags(deployCmd)
+    natsFlags(deployCmd)
+    serviceFlags(deployCmd)
 }
 
 func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
@@ -472,8 +523,8 @@ func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
     viper.BindPFlag("insecure", cmd.Flags().Lookup("insecure"))
     viper.BindPFlag("ingress_annotations", cmd.Flags().Lookup("ingress-annotations"))
     viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
-    bindServerFlags(cmd)
-    {{ if .EnableNats }}bindNatsFlags(cmd){{ end }}
+    bindServiceFlags(cmd)
+    bindNatsFlags(cmd)
 }
 `)
 }
@@ -544,11 +595,11 @@ func printDeployment() (string, error) {
     c := kopts.NewContainer(viper.GetString("name"),
         kopts.ContainerImage(image),
         kopts.ContainerPort("http", viper.GetInt("port")),
-        kopts.ContainerArgs([]string{"server", "start"}),
+        kopts.ContainerArgs([]string{"service", "start"}),
         // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
         kopts.ContainerEnvVar(replacer.Replace("{{ .Name | ToUpper }}_PORT"), fmt.Sprintf("%d", viper.GetInt("port"))),
         kopts.ContainerLivenessProbeHTTP(probe),
-        {{ if .EnableNats }}kopts.ContainerEnvVar("{{ .Name | ToUpper }}_NATS_URLS", viper.GetString("nats_urls")),{{ end }}
+        kopts.ContainerEnvVar("{{ .Name | ToUpper }}_NATS_URLS", viper.GetString("nats_urls")),
     )
     
     p := kopts.NewPodSpec("{{ .Name }}",
