@@ -721,7 +721,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CoverWhale/microtest/service"
+	"{{ .Module }}/service"
 	"github.com/nats-io/nats.go"
 	"github.com/segmentio/ksuid"
 	"github.com/spf13/cobra"
