@@ -110,6 +110,8 @@ func service(cmd *cobra.Command, args []string) error {
 		createDocs(dd),
 		createNats(dd),
 		createNatsInfra(dd),
+		createClientCmd(dd),
+		createQueryCmd(dd),
 	}
 
 	if cfg.Service.EnableHTTP {
@@ -208,6 +210,18 @@ func createDeploy(dd Delims) CreateFileFromTemplate {
 func createManual(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
 		return cfg.Service.createOrPrintFile("cmd/manual.go", tpl.Manual(), dd)
+	}
+}
+
+func createClientCmd(dd Delims) CreateFileFromTemplate {
+	return func(s *Service) error {
+		return cfg.Service.createOrPrintFile("cmd/client.go", tpl.CmdClient(), dd)
+	}
+}
+
+func createQueryCmd(dd Delims) CreateFileFromTemplate {
+	return func(s *Service) error {
+		return cfg.Service.createOrPrintFile("cmd/query.go", tpl.Query(), dd)
 	}
 }
 
@@ -364,6 +378,7 @@ func (s *Service) createOrPrintFile(n string, b []byte, d Delims) error {
 func (s *Service) handleOutput(w io.Writer, b []byte, d Delims) error {
 	fmap := template.FuncMap{
 		"ToUpper": strings.ToUpper,
+		"ToLower": strings.ToLower,
 	}
 	temp := template.Must(template.New("file").Delims(d.First, d.Second).Funcs(fmap).Parse(string(b)))
 	if err := temp.Execute(w, s); err != nil {

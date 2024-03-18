@@ -53,12 +53,12 @@ var serviceCmd = &cobra.Command{
 
 func init() {
     rootCmd.AddCommand(serviceCmd)
-    serviceFlags(serviceCmd)
+    {{- if .EnableHTTP }}serviceFlags(serviceCmd){{- end }}
     natsFlags(serviceCmd)
 }
 
 func bindServiceCmdFlags(cmd *cobra.Command, args []string) {
-    bindServiceFlags(cmd)
+    {{- if .EnableHTTP }}bindServiceFlags(cmd){{- end }}
     bindNatsFlags(cmd)
 }
 `)
@@ -266,7 +266,8 @@ func start(cmd *cobra.Command, args []string ) error {
     }
     defer nc.Close()
 
-    logger.SetOutput(cwnats.NewNatsLogger("prime.logs.{{ .Name }}", nc))
+    // uncomment to enable logging over NATS
+    //logger.SetOutput(cwnats.NewNatsLogger("prime.logs.{{ .Name }}", nc))
     
     svc, err := micro.AddService(nc, config)
     if err != nil {
@@ -456,25 +457,25 @@ import (
 
 // bindNatsFlags binds nats flag values to viper
 func bindNatsFlags(cmd *cobra.Command) {
-	viper.BindPFlag("nats_urls", cmd.Flags().Lookup("nats-urls"))
+    viper.BindPFlag("nats_urls", cmd.Flags().Lookup("nats-urls"))
+    viper.BindPFlag("credentials_file", cmd.Flags().Lookup("credentials-file"))   
 }
 
 // natsFlags adds the nats flags to the passed in cobra command
 func natsFlags(cmd *cobra.Command) {
     cmd.PersistentFlags().String("nats-urls", "nats://localhost:4222", "NATS server URL(s)")
+    cmd.PersistentFlags().String("credentials-file", "", "Path to NATS user credential file")
 }
 
 // bindServiceFlags binds the secret flag values to viper
 func bindServiceFlags(cmd *cobra.Command) {
     viper.BindPFlag("port", cmd.Flags().Lookup("port"))
-    viper.BindPFlag("enable_verification", cmd.Flags().Lookup("enable-verification"))
     viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
 }
 
 // sererFlags adds the service flags to the passed in command
 func serviceFlags(cmd *cobra.Command) {
     cmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
-    cmd.PersistentFlags().Bool("enable-verification", false, "Enable driver verification")
     cmd.PersistentFlags().String("tempo-url", "", "URL for Tempo")
 }
 `)
@@ -500,14 +501,14 @@ func init() {
     deployCmd.PersistentFlags().String("registry", "k3d-{{ .Name }}-registry:50000", "Container registry")
     deployCmd.PersistentFlags().String("namespace", "default", "Deployment Namespace")
     deployCmd.PersistentFlags().String("version", "latest", "Container version (tag)")
-    deployCmd.PersistentFlags().Int("service-port", 80, "k8s service port")
-    deployCmd.PersistentFlags().String("service-name", "{{ .Name }}", "k8s service name")
-    deployCmd.PersistentFlags().String("ingress-host", "{{ .Name }}.127.0.0.1.nip.io", "k8s ingresss host")
-    deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls")
-    deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name")
-    deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress")
+    {{ if .EnableHTTP }}deployCmd.PersistentFlags().Int("service-port", 80, "k8s service port"){{- end }}
+    {{ if .EnableHTTP }}deployCmd.PersistentFlags().String("service-name", "{{ .Name }}", "k8s service name"){{- end }}
+    {{ if .EnableHTTP }}deployCmd.PersistentFlags().String("ingress-host", "{{ .Name }}.127.0.0.1.nip.io", "k8s ingresss host"){{- end }}
+    {{ if .EnableHTTP }}deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls"){{- end }}
+    {{ if .EnableHTTP }}deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name"){{- end }}
+    {{ if .EnableHTTP }}deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress"){{- end }}
     natsFlags(deployCmd)
-    serviceFlags(deployCmd)
+    {{ if .EnableHTTP }}serviceFlags(deployCmd){{- end }}
 }
 
 func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
@@ -515,15 +516,15 @@ func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
     viper.BindPFlag("registry", cmd.Flags().Lookup("registry"))
     viper.BindPFlag("namespace", cmd.Flags().Lookup("namespace"))
     viper.BindPFlag("version", cmd.Flags().Lookup("version"))
-    viper.BindPFlag("service_port", cmd.Flags().Lookup("service-port"))
-    viper.BindPFlag("service_name", cmd.Flags().Lookup("service-name"))
-    viper.BindPFlag("ingress_host", cmd.Flags().Lookup("ingress-host"))
-    viper.BindPFlag("ingress_tls", cmd.Flags().Lookup("ingress-tls"))
-    viper.BindPFlag("ingress_class", cmd.Flags().Lookup("ingress-class"))
-    viper.BindPFlag("insecure", cmd.Flags().Lookup("insecure"))
-    viper.BindPFlag("ingress_annotations", cmd.Flags().Lookup("ingress-annotations"))
-    viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url"))
-    bindServiceFlags(cmd)
+    {{ if .EnableHTTP }}viper.BindPFlag("service_port", cmd.Flags().Lookup("service-port")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("service_name", cmd.Flags().Lookup("service-name")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("ingress_host", cmd.Flags().Lookup("ingress-host")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("ingress_tls", cmd.Flags().Lookup("ingress-tls")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("ingress_class", cmd.Flags().Lookup("ingress-class")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("insecure", cmd.Flags().Lookup("insecure")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("ingress_annotations", cmd.Flags().Lookup("ingress-annotations")){{- end }}
+    {{ if .EnableHTTP }}viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url")){{- end }}
+    {{ if .EnableHTTP }}bindServiceFlags(cmd){{- end}}
     bindNatsFlags(cmd)
 }
 `)
@@ -535,11 +536,11 @@ package cmd
 
 import (
     "fmt"
-    "strings"
     
     "github.com/CoverWhale/kopts"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
+    corev1 "k8s.io/api/core/v1"
 )
 
 var manualCmd = &cobra.Command{
@@ -560,6 +561,7 @@ func manual(cmd *cobra.Command, args []string) error {
         return err
     }
     
+{{ if .EnableHTTP }}
     service, err := printService()
     if err != nil {
         return err
@@ -569,39 +571,49 @@ func manual(cmd *cobra.Command, args []string) error {
     if err != nil {
         return err
     }
+{{- end }}
     
-    secret, err := printSecret()
-    if err != nil {
-        return err
-    }
-    
-    fmt.Printf("%s%s%s%s", dep, service, ingress, secret)
+    fmt.Printf("%s{{ if .EnableHTTP }}%s%s{{ end }}", dep,{{if .EnableHTTP }} service, ingress{{ end }})
     
     return nil
 }
 
 func printDeployment() (string, error) {
     image := fmt.Sprintf("%s/%s:%s", viper.GetString("registry"), viper.GetString("name"), viper.GetString("version"))
+    natsSecret := corev1.VolumeSource{
+        Secret: &corev1.SecretVolumeSource{
+            SecretName: "{{ .Name | ToLower }}-nats",
+        },
+    }
     
+{{ if .EnableHTTP }}
     probe := kopts.HTTPProbe{
         Path:          "/healthz",
         Port:          viper.GetInt("port"),
         PeriodSeconds: 10,
         InitialDelay:  10,
     }
+{{- end}}
 
+{{ if .EnableHTTP }}
     // k8s doesn't like dashes in env names
-    replacer := strings.NewReplacer("-", "_")    
+    //replacer := strings.NewReplacer("-", "_")    
+{{ end}}
     c := kopts.NewContainer(viper.GetString("name"),
         kopts.ContainerImage(image),
-        kopts.ContainerPort("http", viper.GetInt("port")),
         kopts.ContainerArgs([]string{"service", "start"}),
+        {{- if .EnableHTTP }}kopts.ContainerPort("http", viper.GetInt("port")),
         // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
         kopts.ContainerEnvVar(replacer.Replace("{{ .Name | ToUpper }}_PORT"), fmt.Sprintf("%d", viper.GetInt("port"))),
-        kopts.ContainerLivenessProbeHTTP(probe),
+        kopts.ContainerLivenessProbeHTTP(probe),{{- end }}
         kopts.ContainerEnvVar("{{ .Name | ToUpper }}_NATS_URLS", viper.GetString("nats_urls")),
     )
-    
+
+    if viper.GetString("credentials_file") != "" {
+        kopts.ContainerEnvVar("{{ .Name | ToUpper}}_CREDENTIALS_FILE", viper.GetString("credentials_file"))(&c)
+	kopts.ContainerVolumeSource("vehicle-nats", "/creds", natsSecret)(&c)
+    }
+
     p := kopts.NewPodSpec("{{ .Name }}",
         kopts.PodLabel("app", viper.GetString("name")),
         kopts.PodContainer(c),
@@ -612,11 +624,22 @@ func printDeployment() (string, error) {
         kopts.DeploymentSelector("app", viper.GetString("name")),
         kopts.DeploymentPodSpec(p),
     )
+
+    if viper.GetString("credentials_file") != "" {
+        kopts.ContainerVolumeSource("{{ .Name | ToLower }}-nats", "/creds", natsSecret)(&c)
+        d.Spec.Template.Spec.Volumes = []corev1.Volume{
+            {
+                Name: "{{ .Name | ToLower }}-nats",
+                VolumeSource: natsSecret,
+            },
+        }
+    }
     
     return kopts.MarshalYaml(d)
 
 }
 
+{{ if .EnableHTTP }}
 func printService() (string, error) {
     service := kopts.NewService(viper.GetString("service_name"),
         kopts.ServiceNamespace(viper.GetString("namespace")),
@@ -662,18 +685,144 @@ func printIngress() (string, error) {
     
     return kopts.MarshalYaml(ingress)
 }
-
-func printSecret() (string, error) {
-    if viper.GetString("secret_key") == "" {
-        return "", nil
-    }
-    
-    secret := kopts.NewSecret(viper.GetString("secret_name"),
-        kopts.SecretData("apiKey", []byte(viper.GetString("secret_key"))),
-        kopts.SecretNamespace(viper.GetString("namespace")),
-    )
-    
-    return kopts.MarshalYaml(secret)
+{{- end }}
+`)
 }
+
+func CmdClient() []byte {
+	return []byte(`package cmd
+
+import (
+	"github.com/spf13/cobra"
+)
+
+var clientCmd = &cobra.Command{
+	Use:              "client",
+	Short:            "Client interactions with the service",
+	PersistentPreRun: bindClientCmdFlags,
+}
+
+func init() {
+	rootCmd.AddCommand(clientCmd)
+	natsFlags(clientCmd)
+}
+
+func bindClientCmdFlags(cmd *cobra.Command, args []string) {
+	bindNatsFlags(cmd)
+}
+`)
+}
+
+func Query() []byte {
+	return []byte(`package cmd 
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/CoverWhale/microtest/service"
+	"github.com/nats-io/nats.go"
+	"github.com/segmentio/ksuid"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+// queryCmd represents the query command
+var queryCmd = &cobra.Command{
+	Use:       "query",
+	Short:     "Query the service for data",
+	RunE:      query,
+	Args:      cobra.MatchAll(cobra.MinimumNArgs(1), cobra.OnlyValidArgs),
+	ValidArgs: []string{"add", "subtract"},
+}
+
+func init() {
+	clientCmd.AddCommand(queryCmd)
+	queryCmd.PersistentFlags().Int("a", 0, "value for A")
+	viper.BindPFlag("a", queryCmd.PersistentFlags().Lookup("a"))
+	queryCmd.PersistentFlags().Int("b", 0, "value for B")
+	viper.BindPFlag("b", queryCmd.PersistentFlags().Lookup("b"))
+}
+
+func query(cmd *cobra.Command, args []string) error {
+	var opts []nats.Option
+	if viper.GetString("credentials_file") != "" {
+		opts = append(opts, nats.UserCredentials(viper.GetString("credentials_file")))
+	}
+
+	nc, err := nats.Connect(viper.GetString("nats_urls"), opts...)
+	if err != nil {
+		return err
+	}
+
+	req := service.MathRequest{
+		A: viper.GetInt("a"),
+		B: viper.GetInt("b"),
+	}
+
+	if args[0] == "add" {
+		mr, err := add(req, nc)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(mr.Result)
+	}
+
+	if args[0] == "subtract" {
+		mr, err := subtract(req, nc)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(mr.Result)
+	}
+
+	return nil
+}
+
+func add(req service.MathRequest, nc *nats.Conn) (service.MathResponse, error) {
+	var mr service.MathResponse
+	subject := fmt.Sprintf("prime.services.{{ .Name }}.%s.math.add.get", ksuid.New().String())
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		return mr, err
+	}
+
+	resp, err := nc.Request(subject, data, time.Duration(1*time.Second))
+	if err != nil {
+		return mr, err
+	}
+
+	if err := json.Unmarshal(resp.Data, &mr); err != nil {
+		return mr, err
+	}
+
+	return mr, nil
+}
+
+func subtract(req service.MathRequest, nc *nats.Conn) (service.MathResponse, error) {
+	var mr service.MathResponse
+	subject := fmt.Sprintf("prime.services.{{ .Name }}.%s.math.subtract.get", ksuid.New().String())
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		return mr, err
+	}
+
+	resp, err := nc.Request(subject, data, time.Duration(1*time.Second))
+	if err != nil {
+		return mr, err
+	}
+
+	if err := json.Unmarshal(resp.Data, &mr); err != nil {
+		return mr, err
+	}
+
+	return mr, nil
+}
+
 `)
 }
