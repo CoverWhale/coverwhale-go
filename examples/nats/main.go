@@ -65,7 +65,7 @@ func main() {
 	cwnats.HandleNotify(svc)
 }
 
-func specificHandler(r micro.Request) error {
+func specificHandler(logger *logr.Logger, r micro.Request) error {
 	r.Respond([]byte("in the specific handler"))
 
 	return nil
@@ -80,7 +80,7 @@ type MathResponse struct {
 	Result int `json:"result"`
 }
 
-func add(r micro.Request) error {
+func add(logger *logr.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
 		return cwnats.NewClientError(err, 400)
@@ -93,7 +93,7 @@ func add(r micro.Request) error {
 	return nil
 }
 
-func subtract(r micro.Request) error {
+func subtract(logger *logr.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
 		return cwnats.NewClientError(err, 400)

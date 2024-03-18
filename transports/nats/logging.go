@@ -4,13 +4,20 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type LogWriter struct {
-	Subject string
-	Conn    *nats.Conn
+type NatsLogger struct {
+	subject string
+	conn    *nats.Conn
 }
 
-func (l LogWriter) Write(p []byte) (int, error) {
-	err := l.Conn.Publish(l.Subject, p)
+func NewNatsLogger(subject string, nc *nats.Conn) NatsLogger {
+	return NatsLogger{
+		subject: subject,
+		conn:    nc,
+	}
+}
+
+func (n NatsLogger) Write(p []byte) (int, error) {
+	err := n.conn.Publish(n.subject, p)
 	if err != nil {
 		return 0, err
 	}

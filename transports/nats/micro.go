@@ -12,17 +12,11 @@ import (
 	"time"
 
 	"github.com/CoverWhale/logr"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 	"github.com/segmentio/ksuid"
 )
 
 type HandlerWithErrors func(*logr.Logger, micro.Request) error
-
-type NatsLogger struct {
-	subject string
-	conn    *nats.Conn
-}
 
 type ClientError struct {
 	Code    int
@@ -120,20 +114,4 @@ func RequestLogger(l *logr.Logger, subject string) (*logr.Logger, error) {
 		return nil, err
 	}
 	return l.WithContext(map[string]string{"request_id": id}), nil
-}
-
-func NewNatsLogger(subject string, nc *nats.Conn) NatsLogger {
-	return NatsLogger{
-		subject: subject,
-		conn:    nc,
-	}
-}
-
-func (n NatsLogger) Write(p []byte) (int, error) {
-	err := n.conn.Publish(n.subject, p)
-	if err != nil {
-		return 0, err
-	}
-
-	return len(p), nil
 }
