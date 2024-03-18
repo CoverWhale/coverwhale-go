@@ -72,17 +72,15 @@ deploy-local: k8s-up {{ if .EnableGraphql }}schema{{- end}} edgedb nats {{ .Name
 
 generate-yaml: {{ .Name }}ctl
 {{"\t"}}mkdir -p deployments/{dev,prod}
-{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class $(INGRESS_CLASS) --ingress-annotations $(ANNOTATIONS) $(INGRESS_TLS) --namespace {{ .Namespace }} \
-{{"\t"}}{{"\t"}}--registry  {{ .ContainerRegistry }} --service-name {{ .Name }}-$(ENVIRONMENT) --nats-urls {{ .NatsServers }} \
-        --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
+{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --namespace {{ .Namespace }} --registry  {{ .ContainerRegistry }} --nats-urls {{ .NatsServers }} --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
 
 generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
 {{"\t"}}mkdir -p deployments/dev
-{{"\t"}}ENVIRONMENT=dev INGRESS=dev-{{ .Name }}.{{ .Domain }} INGRESS_CLASS=nginx INGRESS_TLS=--ingress-tls TAG=latest ANNOTATIONS="cert-manager.io/cluster-issuer"="letsencrypt-prod" make generate-yaml
+{{"\t"}}ENVIRONMENT=dev TAG=latest make generate-yaml
 
 generate-prod: {{ .Name }}ctl ## Generate prod environment yaml for Argo
 {{"\t"}}mkdir -p deployments/prod
-{{"\t"}}ENVIRONMENT=prod INGRESS_CLASS=nginx INGRESS_TLS=--ingress-tls ANNOTATIONS="cert-manager.io/cluster-issuer"="letsencrypt-prod" INGRESS={{ .Name }}.{{ .Domain }} TAG=$(VERSION) make generate-yaml
+{{"\t"}}ENVIRONMENT=prod TAG=$(VERSION) make generate-yaml
 
 k8s-up: ## Creates a local kubernetes cluster with a registry
 {{"\t"}}k3d registry create {{ .Name }}-registry --port 50000
@@ -172,7 +170,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [ 1.19.x ]
+        go-version: [ 1.22.x ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
