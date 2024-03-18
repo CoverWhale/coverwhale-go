@@ -15,16 +15,54 @@
 package tpl
 
 func Nats() []byte {
-	return []byte(`package server
+	return []byte(`{{ $tick := "` + "`" + `" -}}
+package service
+
 import (
+	"encoding/json"
+
+	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
 	"github.com/CoverWhale/logr"
 	"github.com/nats-io/nats.go/micro"
 )
 
-func GetFoo(r micro.Request) error {
-	logr.Info("received request")
-	r.Respond([]byte("returning Foo"))
+type MathRequest struct {
+	A int {{ $tick }}json:"a"{{ $tick }}
+	B int {{ $tick }}json:"b"{{ $tick }}
+}
 
+type MathResponse struct {
+	Result int {{ $tick }}json:"result"{{ $tick }}
+}
+
+func SpecificHandler(logger *logr.Logger, r micro.Request) error {
+	r.Respond([]byte("in the specific handler"))
+
+	return nil
+}
+
+func Add(logger *logr.Logger, r micro.Request) error {
+	var mr MathRequest
+	if err := json.Unmarshal(r.Data(), &mr); err != nil {
+		return cwnats.NewClientError(err, 400)
+	}
+
+	resp := MathResponse{Result: mr.A + mr.B}
+
+	r.RespondJSON(resp)
+
+	return nil
+}
+
+func Subtract(logger *logr.Logger, r micro.Request) error {
+	var mr MathRequest
+	if err := json.Unmarshal(r.Data(), &mr); err != nil {
+		return cwnats.NewClientError(err, 400)
+	}
+
+	resp := MathResponse{Result: mr.A - mr.B}
+
+	r.RespondJSON(resp)
 	return nil
 }
 `)

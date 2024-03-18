@@ -66,14 +66,14 @@ docker-delete: ## Deletes the local docker image
 update-local: docker-local ## Builds the container image and pushes to registry, rolls out the new container into the cluster
 {{"\t"}}kubectl rollout restart deployment/{{ .Name }}
 
-deploy-local: k8s-up {{ if .EnableGraphql }}schema{{- end}} edgedb {{ if .EnableNats }}nats{{ end }} {{ .Name }}ctl docker-local ## Creates a local k8s cluster, builds a docker image of {{ .Name }}, and pushes to local registry
-{{"\t"}}./{{ .Name }}ctl deploy manual {{ if .EnableNats }}--nats-urls "nats:4222"{{ end }} | kubectl apply -f -
+deploy-local: k8s-up {{ if .EnableGraphql }}schema{{- end}} edgedb nats {{ .Name }}ctl docker-local ## Creates a local k8s cluster, builds a docker image of {{ .Name }}, and pushes to local registry
+{{"\t"}}./{{ .Name }}ctl deploy manual --nats-urls "nats:4222" | kubectl apply -f -
 {{"\t"}}kubectl wait pods -l app={{ .Name }} --for condition=Ready --timeout=30s
 
 generate-yaml: {{ .Name }}ctl
 {{"\t"}}mkdir -p deployments/{dev,prod}
 {{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --ingress-class $(INGRESS_CLASS) --ingress-annotations $(ANNOTATIONS) $(INGRESS_TLS) --namespace {{ .Namespace }} \
-{{"\t"}}{{"\t"}}--registry  {{ .ContainerRegistry }} --service-name {{ .Name }}-$(ENVIRONMENT) {{ if .EnableNats }}--nats-urls {{ .NatsServers }} {{ end }} \
+{{"\t"}}{{"\t"}}--registry  {{ .ContainerRegistry }} --service-name {{ .Name }}-$(ENVIRONMENT) --nats-urls {{ .NatsServers }} \
         --ingress-host $(INGRESS) --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
 
 generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
@@ -101,12 +101,10 @@ edgedb: ## Deploys edgedb into the cluster
 {{"\t"}}# kubectl wait pods -l app=edgedb --for condition=Ready --timeout=60s
 {{"\t"}}@echo "EdgeDB UI: http://edgedb.127.0.0.1.nip.io:8080/ui?authToken=eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkdDTSIsImVwayI6eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IlFwNndsOG9UVzM0dWtfVzFJX2d4ZUhfdkxjUjloRnU2Ti1aSUZDc08yQjQiLCJ5IjoiNmdEbEloVHcyNUJjLTYzZzNzdDMyb0lTb1VfV3EzZlF6QUdzS21wUDQtcyJ9fQ..L5WeRSfDxBKNmb3D.xUBmRYzVlrkH75u6i4NZMiDn1ssFsfPkiUNLSq0FrcSigZKE_u4sJBsMb0xYQ3Tq_AGjhoIttYa7hICMjlFcnD0w1CYbDDgK3TKCMcgS4m_W_SZMhYvMX-eAatww6X_y7jc9XAdWOtMV8Mi5Q1vV5gQTgYKbenZ2Lpr9P3UU4eop9kOqfQ_bIoZ5k0r13BEafvem30nER5hnGudJgvbDu3BtB0G4Ng.5boI8diCBzkk3O8Ce1ZEVg"
 
-{{ if .EnableNats }}
 nats: ## Deploys NATS into the cluster
 {{"\t"}}helm repo add nats https://nats-io.github.io/k8s/helm/charts/
 {{"\t"}}helm repo update
 {{"\t"}}helm install nats nats/nats -f infra/nats.yaml
-{{ end }}
 
 clean: ## Remove previous build
 {{"\t"}}git clean -fd

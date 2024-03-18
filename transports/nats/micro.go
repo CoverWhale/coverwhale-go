@@ -7,27 +7,22 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/CoverWhale/logr"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
+	"github.com/segmentio/ksuid"
 )
 
-type NATSMicro struct {
-	Conn    *nats.Conn
-	Service micro.Service
-	Logger  *logr.Logger
-}
+type HandlerWithErrors func(*logr.Logger, micro.Request) error
 
-type MicroOptions struct {
-	BaseSubject string
-	Config      micro.Config
-	Servers     string
-	Opts        []nats.Option
+type NatsLogger struct {
+	subject string
+	conn    *nats.Conn
 }
-
-type HandlerWithErrors func(r micro.Request) error
 
 type ClientError struct {
 	Code    int
@@ -58,62 +53,87 @@ func NewClientError(err error, code int) ClientError {
 	}
 }
 
-func healthz(r micro.Request) {
-	data := []byte("ok")
-	headers := map[string][]string{
-		"Nats-Service-Status-Code": {"ok"},
-	}
-
-	r.Respond(data, micro.WithHeaders(headers))
-}
-
-func NewMicroService(options MicroOptions) (NATSMicro, error) {
-	nc, err := nats.Connect(options.Servers, options.Opts...)
-	if err != nil {
-		return NATSMicro{}, err
-	}
-
-	svc, err := micro.AddService(nc, options.Config)
-	if err != nil {
-		return NATSMicro{}, err
-	}
-
-	svc.AddEndpoint("health", micro.HandlerFunc(healthz), micro.WithEndpointSubject(fmt.Sprintf("%s.healthz", options.BaseSubject)))
-
-	return NATSMicro{
-		Service: svc,
-		Conn:    nc,
-	}, nil
-}
-
-func (n *NATSMicro) HandleNotify() {
+func HandleNotify(s micro.Service) {
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-sigTerm
 	logr.Infof("received signal: %s", sig)
-	n.Service.Stop()
-	n.Conn.Drain()
-	n.Conn.Close()
+	s.Stop()
 }
 
 // ErrorHandler wraps a normal micro endpoint and allows for returning errors natively. Errors are
 // checked and if an error is a client error, details are returned, otherwise a 500 is returned and logged
-func ErrorHandler(h HandlerWithErrors) micro.HandlerFunc {
+func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 	return func(r micro.Request) {
-		err := h(r)
+		start := time.Now()
+		id, err := SubjectToRequestID(r.Subject())
+		if err != nil {
+			handleRequestError(logger, NewClientError(err, 400), r)
+			return
+		}
+		reqLogger := logger.WithContext(map[string]string{"request_id": id, "path": r.Subject()})
+		defer func() {
+			reqLogger.Infof("duration %dms", time.Since(start).Milliseconds())
+		}()
+
+		err = h(reqLogger, r)
 		if err == nil {
 			return
 		}
 
-		var ce *ClientError
-		if errors.As(err, &ce) {
-			r.Error(ce.CodeString(), http.StatusText(ce.Code), ce.Body())
-			return
-		}
-
-		logr.Error(err)
-
-		r.Error("500", "internal server error", []byte(`{"error": "internal server error"}`))
+		handleRequestError(reqLogger, err, r)
 	}
+}
+
+func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
+	var ce ClientError
+	if errors.As(err, &ce) {
+		r.Error(ce.CodeString(), http.StatusText(ce.Code), ce.Body())
+		return
+	}
+
+	logger.Error(err)
+
+	r.Error("500", "internal server error", []byte(`{"error": "internal server error"}`))
+}
+
+func SubjectToRequestID(s string) (string, error) {
+	split := strings.Split(s, ".")
+	if len(split) < 3 {
+		return "", fmt.Errorf("invalid subject")
+	}
+
+	id := split[3]
+
+	_, err := ksuid.Parse(id)
+	if err != nil {
+		return "", fmt.Errorf("invalid ksuid request ID")
+	}
+
+	return id, nil
+}
+
+func RequestLogger(l *logr.Logger, subject string) (*logr.Logger, error) {
+	id, err := SubjectToRequestID(subject)
+	if err != nil {
+		return nil, err
+	}
+	return l.WithContext(map[string]string{"request_id": id}), nil
+}
+
+func NewNatsLogger(subject string, nc *nats.Conn) NatsLogger {
+	return NatsLogger{
+		subject: subject,
+		conn:    nc,
+	}
+}
+
+func (n NatsLogger) Write(p []byte) (int, error) {
+	err := n.conn.Publish(n.subject, p)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(p), nil
 }

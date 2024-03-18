@@ -5,39 +5,64 @@ import (
 
 	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
 	"github.com/CoverWhale/logr"
+	"github.com/invopop/jsonschema"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 )
 
-func main() {
-	options := cwnats.MicroOptions{
-		Servers:     nats.DefaultURL,
-		BaseSubject: "prime.example",
-		Config: micro.Config{
-			Name:        "example-app",
-			Version:     "0.0.1",
-			Description: "An example application",
-			Endpoint: &micro.EndpointConfig{
-				Subject: "prime.example.generic",
-				Handler: micro.HandlerFunc(func(r micro.Request) { r.Respond([]byte("responding")) }),
-			},
-		},
+func schemaString(s any) string {
+	schema := jsonschema.Reflect(s)
+	data, err := schema.MarshalJSON()
+	if err != nil {
+		logr.Fatal(err)
 	}
 
-	ms, err := cwnats.NewMicroService(options)
+	return string(data)
+}
+
+func main() {
+
+	logger := logr.NewLogger()
+	config := micro.Config{
+		Name:        "example-app",
+		Version:     "0.0.1",
+		Description: "An example application",
+	}
+
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		logr.Fatal(err)
+	}
+	defer nc.Close()
+
+	svc, err := micro.AddService(nc, config)
 	if err != nil {
 		logr.Fatal(err)
 	}
 
 	// add a singular handler as an endpoint
-	ms.Service.AddEndpoint("specific", cwnats.ErrorHandler(specificHandler), micro.WithEndpointSubject("prime.example.specific"))
+	svc.AddEndpoint("specific", cwnats.ErrorHandler(logger, specificHandler), micro.WithEndpointSubject("prime.example.specific"))
 
 	// add a handler group
-	grp := ms.Service.AddGroup("prime.example.math")
-	grp.AddEndpoint("add", cwnats.ErrorHandler(add))
-	grp.AddEndpoint("subtract", cwnats.ErrorHandler(subtract))
+	grp := svc.AddGroup("prime.example.math", micro.WithGroupQueueGroup("example"))
+	grp.AddEndpoint("add",
+		cwnats.ErrorHandler(logger, add),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "adds two numbers",
+			"format":          "application/json",
+			"request_schema":  schemaString(&MathRequest{}),
+			"response_schema": schemaString(&MathResponse{}),
+		}))
+	grp.AddEndpoint("subtract",
+		cwnats.ErrorHandler(logger, subtract),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "subtracts two numbers",
+			"format":          "application/json",
+			"request_schema":  schemaString(&MathRequest{}),
+			"response_schema": schemaString(&MathResponse{}),
+		}))
 
-	ms.HandleNotify()
+	cwnats.HandleNotify(svc)
 }
 
 func specificHandler(r micro.Request) error {

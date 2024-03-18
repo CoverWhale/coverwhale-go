@@ -34,19 +34,18 @@ var cfgFile string
 var cfg Config
 
 type Config struct {
-	Debug  bool   `mapstructure:"debug"`
-	Server Server `mapstructure:"server"`
+	Debug   bool    `mapstructure:"debug"`
+	Service Service `mapstructure:"service"`
 }
-type Server struct {
+type Service struct {
 	Name              string `mapstructure:"name"`
 	Namespace         string `mapstructure:"namespace"`
 	Domain            string `mapstructure:"domain"`
 	Module            string
-	DisableTelemetry  bool   `mapstructure:"disable_telemetry"`
+	EnableTelemetry   bool   `mapstructure:"enable_telemetry"`
 	DisableDeployment bool   `mapstructure:"disable_deployment"`
 	MetricsUrl        string `mapstructure:"metrics_url"`
 	EnableHTTP        bool   `mapstructure:"enable_http"`
-	EnableNats        bool   `mapstructure:"enable_nats"`
 	NatsSubject       string `mapstructure:"nats_subject"`
 	NatsServers       string `mapstructure:"nats_servers"`
 	EnableGraphql     bool   `mapstructure:"enable_graphql"`
