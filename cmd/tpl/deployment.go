@@ -48,6 +48,9 @@ goreleaser: tidy ## Creates local multiarch releases with GoReleaser
 tidy: ## Pull in dependencies
 {{"\t"}}go mod tidy && go mod vendor
 
+fmt: ## Format All files
+{{"\t"}}go fmt ./...
+
 {{ .Name }}ctl: ## Builds the binary on the current platform
 {{"\t"}}go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
 

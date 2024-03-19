@@ -201,10 +201,8 @@ import (
     "github.com/CoverWhale/logr"
     "github.com/invopop/jsonschema"
     "github.com/nats-io/nats.go/micro"
-    "github.com/nats-io/nats.go"
     cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
     "github.com/spf13/cobra"
-    "github.com/spf13/viper"
     {{ if and .EnableHTTP .EnableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"{{- end }}
     {{ if .EnableGraphql }}"github.com/99designs/gqlgen/graphql/handler"
@@ -259,10 +257,10 @@ func start(cmd *cobra.Command, args []string ) error {
     	Version:     "0.0.1",
     	Description: "An example application",
     }
-    
-    nc, err := nats.Connect(viper.GetString("nats_urls"))
+
+    nc, err := newNatsConnection("{{ .Name }}-server")
     if err != nil {
-    	logr.Fatal(err)
+    	return err
     }
     defer nc.Close()
 
@@ -689,6 +687,25 @@ func printIngress() (string, error) {
 `)
 }
 
+func NatsHelper() []byte {
+	return []byte(`package cmd 
+
+import (
+	"github.com/nats-io/nats.go"
+	"github.com/spf13/viper"
+)
+
+func newNatsConnection(name string) (*nats.Conn, error) {
+	opts := []nats.Option{nats.Name(name)}
+	if viper.GetString("credentials_file") != "" {
+		opts = append(opts, nats.UserCredentials(viper.GetString("credentials_file")))
+	}
+
+	return nats.Connect(viper.GetString("nats_urls"), opts...)
+}
+`)
+}
+
 func CmdClient() []byte {
 	return []byte(`package cmd
 
@@ -746,15 +763,12 @@ func init() {
 }
 
 func query(cmd *cobra.Command, args []string) error {
-	var opts []nats.Option
-	if viper.GetString("credentials_file") != "" {
-		opts = append(opts, nats.UserCredentials(viper.GetString("credentials_file")))
-	}
-
-	nc, err := nats.Connect(viper.GetString("nats_urls"), opts...)
+	nc, err := newNatsConnection("{{ .Name }}-client")
 	if err != nil {
 		return err
 	}
+	defer nc.Close()
+
 
 	req := service.MathRequest{
 		A: viper.GetInt("a"),

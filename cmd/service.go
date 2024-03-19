@@ -112,6 +112,7 @@ func service(cmd *cobra.Command, args []string) error {
 		createNatsInfra(dd),
 		createClientCmd(dd),
 		createQueryCmd(dd),
+		createNatsCmdHelper(dd),
 	}
 
 	if cfg.Service.EnableHTTP {
@@ -197,6 +198,12 @@ func createFlags(dd Delims) CreateFileFromTemplate {
 func createDocs(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
 		return cfg.Service.createOrPrintFile("cmd/docs.go", tpl.Docs(), dd)
+	}
+}
+
+func createNatsCmdHelper(dd Delims) CreateFileFromTemplate {
+	return func(s *Service) error {
+		return cfg.Service.createOrPrintFile("cmd/nats.go", tpl.NatsHelper(), dd)
 	}
 }
 
