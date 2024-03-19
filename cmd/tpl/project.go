@@ -609,7 +609,7 @@ func printDeployment() (string, error) {
 
     if viper.GetString("credentials_file") != "" {
         kopts.ContainerEnvVar("{{ .Name | ToUpper}}_CREDENTIALS_FILE", viper.GetString("credentials_file"))(&c)
-	kopts.ContainerVolumeSource("vehicle-nats", "/creds", natsSecret)(&c)
+	kopts.ContainerVolumeSource("{{ .Name | ToLower }}-nats", "/creds", natsSecret)(&c)
     }
 
     p := kopts.NewPodSpec("{{ .Name }}",
