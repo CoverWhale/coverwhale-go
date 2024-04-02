@@ -58,54 +58,8 @@ docs: ## Builds the cli documentation
 {{"\t"}}mkdir -p docs
 {{"\t"}}./{{ .Name }}ctl docs
 
-{{ if not .DisableDeployment }}
-docker-local: ## Builds the container image and pushes to the local k8s registry
-{{"\t"}}docker build -t localhost:50000/{{ .Name }}:latest .
-{{"\t"}}docker push localhost:50000/{{ .Name }}:latest
-
-docker-delete: ## Deletes the local docker image
-{{"\t"}}docker image rm localhost:50000/{{ .Name }}:latest
-
-update-local: docker-local ## Builds the container image and pushes to registry, rolls out the new container into the cluster
-{{"\t"}}kubectl rollout restart deployment/{{ .Name }}
-
-deploy-local: k8s-up {{ if .EnableGraphql }}schema{{- end}} edgedb nats {{ .Name }}ctl docker-local ## Creates a local k8s cluster, builds a docker image of {{ .Name }}, and pushes to local registry
-{{"\t"}}./{{ .Name }}ctl deploy manual --nats-urls "nats:4222" | kubectl apply -f -
-{{"\t"}}kubectl wait pods -l app={{ .Name }} --for condition=Ready --timeout=30s
-
-generate-yaml: {{ .Name }}ctl
-{{"\t"}}mkdir -p deployments/{dev,prod}
-{{"\t"}}./{{ .Name }}ctl deploy manual $(ACTION) --namespace {{ .Namespace }} --registry  {{ .ContainerRegistry }} --nats-urls {{ .NatsServers }} --version=$(TAG)> deployments/$(ENVIRONMENT)/{{ .Name }}.yaml
-
-generate-dev: {{ .Name }}ctl ## Generate dev environment yaml for Argo
-{{"\t"}}mkdir -p deployments/dev
-{{"\t"}}ENVIRONMENT=dev TAG=latest make generate-yaml
-
-generate-prod: {{ .Name }}ctl ## Generate prod environment yaml for Argo
-{{"\t"}}mkdir -p deployments/prod
-{{"\t"}}ENVIRONMENT=prod TAG=$(VERSION) make generate-yaml
-
-k8s-up: ## Creates a local kubernetes cluster with a registry
-{{"\t"}}k3d registry create {{ .Name }}-registry --port 50000
-{{"\t"}}k3d cluster create {{ .Name }} --registry-use k3d-{{ .Name }}-registry:50000 --servers 3 -p "8080:80@loadbalancer"
-
-k8s-down: ## Destroys the k8s cluster and registry
-{{"\t"}}k3d registry delete {{ .Name }}-registry
-{{"\t"}}k3d cluster delete {{ .Name }}
-{{ end -}}
-
 schema: ## Generates boilerplate code from the graph/schema.graphqls file
 {{"\t"}}go run github.com/99designs/gqlgen update
-
-edgedb: ## Deploys edgedb into the cluster
-{{"\t"}}kubectl apply -f infra/edgedb.yaml
-{{"\t"}}# kubectl wait pods -l app=edgedb --for condition=Ready --timeout=60s
-{{"\t"}}@echo "EdgeDB UI: http://edgedb.127.0.0.1.nip.io:8080/ui?authToken=eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkdDTSIsImVwayI6eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IlFwNndsOG9UVzM0dWtfVzFJX2d4ZUhfdkxjUjloRnU2Ti1aSUZDc08yQjQiLCJ5IjoiNmdEbEloVHcyNUJjLTYzZzNzdDMyb0lTb1VfV3EzZlF6QUdzS21wUDQtcyJ9fQ..L5WeRSfDxBKNmb3D.xUBmRYzVlrkH75u6i4NZMiDn1ssFsfPkiUNLSq0FrcSigZKE_u4sJBsMb0xYQ3Tq_AGjhoIttYa7hICMjlFcnD0w1CYbDDgK3TKCMcgS4m_W_SZMhYvMX-eAatww6X_y7jc9XAdWOtMV8Mi5Q1vV5gQTgYKbenZ2Lpr9P3UU4eop9kOqfQ_bIoZ5k0r13BEafvem30nER5hnGudJgvbDu3BtB0G4Ng.5boI8diCBzkk3O8Ce1ZEVg"
-
-nats: ## Deploys NATS into the cluster
-{{"\t"}}helm repo add nats https://nats-io.github.io/k8s/helm/charts/
-{{"\t"}}helm repo update
-{{"\t"}}helm install nats nats/nats -f infra/nats.yaml
 
 clean: ## Remove previous build
 {{"\t"}}git clean -fd
@@ -196,21 +150,11 @@ jobs:
 }
 
 func ReleaseWorkflow() []byte {
-	return []byte(`name: release and deploy
+	return []byte(`name: deploy dev
 on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
-      - 'deployments/**'
-  pull_request:
-    types: [opened, reopened, edited]
-    paths:
-      - '**.go'
-
-env:
-  DOCKER_REPO: ${{ env.ECR_REGISTRY }}/[% .Name %]
 permissions:
   id-token: write
   contents: read
@@ -226,42 +170,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ env.ROLE_ARN }}
-          role-session-name: ${{ env.ROLE_NAME }}
-          aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v1
-      - name: Build branch and push to ecr
-        run: |
-          docker build -t $DOCKER_REPO:${{github.sha}} -t $DOCKER_REPO:latest .
-          docker push -a $DOCKER_REPO
-        #use generated tag instead of latest
-      - run: |
-          make generate-dev TAG=${{github.sha}}
-          make docs
-      - name: create manifests and update docs
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          git config --global user.name "${{ github.event.repository.name }} CI"
-          git config --global user.email "${{ env.USER_EMAIL }}"
-          git add docs deployments
-          git commit -m "update docs and manifests"
-          git push
+      - name: fly deploy
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --config fly.dev.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_DEV_API_TOKEN }}
 `)
 }
 
 func TaggedReleaseWorkflow() []byte {
-	return []byte(`name: release and deploy
+	return []byte(`name: deploy prod
 on:
   push:
-    tags:
-      - '*'
-env:
-  DOCKER_REPO: ${{ env.ECR_REGISTRY }}/[% .Name %]
+    branches:
+      - main
 permissions:
   id-token: write
   contents: read
@@ -273,41 +195,15 @@ jobs:
       id-token: write
       contents: write
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2 
-        with:
-          token: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
+        uses: actions/checkout@v2
+      - name: fly deploy
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --config fly.toml
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_GIT_ACCESS_TOKEN }}
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ env.ROLE_ARN }}
-          role-session-name: ${{ env.ROLE_NAME }}
-          aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v1
-      - name: Build with version and latest and push to ECR
-        run: |
-          docker build -t $DOCKER_REPO:${{ github.ref_name }} -t $DOCKER_REPO:latest . 
-          docker push -a $DOCKER_REPO
-      - run: |
-          make generate-prod TAG=${{ github.ref_name }}
-          make docs
-      - name: create manifests and update docs
-        run: |
-          git config --global user.name "${{ github.event.repository.name }} CI"
-          git config --global user.email "${{ env.USER_EMAIL }}"
-          git add docs deployments
-          git commit -m "update docs and manifests"
-          git push origin HEAD:main
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 `)
 }
 
@@ -315,5 +211,51 @@ func Gitignore() []byte {
 	return []byte(`{{ .Name }}ctl*
 cwgotctl*
 dist/
+`)
+}
+
+func FlyDev() []byte {
+	return []byte(`app = 'cw-dev-prime-{{ .Name }}'
+primary_region = 'iad'
+
+[processes]
+  app = "service start"
+
+[env]
+  {{ .Name | ToUpper }}_NATS_URLS = 'tls://connect.ngs.global'
+
+[http_service]
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory_mb = 256
+  cpus = 1
+`)
+}
+
+func FlyProd() []byte {
+	return []byte(`app = 'cw-prime-{{ .Name }}'
+primary_region = 'iad'
+
+[env]
+  {{ .Name | ToUpper }}_NATS_URLS = 'tls://connect.ngs.global'
+
+[processes]
+  app = "service start"
+
+[http_service]
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory_mb = 256
+  cpus = 1
 `)
 }

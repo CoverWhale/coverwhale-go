@@ -16,7 +16,7 @@ package tpl
 
 func EdgeDBToml() []byte {
 	return []byte(`[edgedb]
-server-version = "3.2"
+server-version = "4.0"
 `)
 }
 

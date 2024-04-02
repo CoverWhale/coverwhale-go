@@ -49,6 +49,7 @@ type Service struct {
 	NatsSubject       string `mapstructure:"nats_subject"`
 	NatsServers       string `mapstructure:"nats_servers"`
 	EnableGraphql     bool   `mapstructure:"enable_graphql"`
+	EnableEdgeDB      bool   `mapstructure:"enable_edgedb"`
 	ContainerRegistry string `mapstructure:"container_registry"`
 }
 

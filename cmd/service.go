@@ -40,6 +40,8 @@ func init() {
 	newCmd.AddCommand(serviceCmd)
 	serviceCmd.Flags().Bool("enable-telemetry", false, "Enable opentelemetry integration")
 	viper.BindPFlag("service.enable_telemetry", serviceCmd.Flags().Lookup("enable-telemetry"))
+	serviceCmd.Flags().Bool("enable-edgedb", false, "Enable EdgeDB integration")
+	viper.BindPFlag("service.enable_edgedb", serviceCmd.Flags().Lookup("enable-edgedb"))
 	serviceCmd.Flags().StringP("name", "n", "", "Application name")
 	serviceCmd.MarkFlagRequired("name")
 	serviceCmd.PersistentFlags().String("namespace", "default", "Namespace for deployment")
@@ -78,7 +80,13 @@ func service(cmd *cobra.Command, args []string) error {
 	cfg.Service.Module = mod
 
 	if !cfg.Debug {
-		dirs := []string{"./cmd", "./service", "./graph", "./dbschema", "./.github/workflows", "./infra"}
+		dirs := []string{"./cmd", "./service", "./.github/workflows"}
+		if cfg.Service.EnableGraphql {
+			dirs = append(dirs, "./graph")
+		}
+		if cfg.Service.EnableEdgeDB {
+			dirs = append(dirs, "./dbschema")
+		}
 		for _, v := range dirs {
 			if _, err := os.Stat(v); os.IsNotExist(err) {
 				if err := os.MkdirAll(v, 0755); err != nil {
@@ -103,29 +111,26 @@ func service(cmd *cobra.Command, args []string) error {
 		createReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
 		createTaggedReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
 		createGitignore(dd),
-		createEdgedbToml(dd),
-		createEdgedbDefault(dd),
-		createEdgeDBInfra(dd),
 		createFlags(dd),
 		createDocs(dd),
 		createNats(dd),
-		createNatsInfra(dd),
 		createClientCmd(dd),
 		createQueryCmd(dd),
 		createNatsCmdHelper(dd),
+		createFlyDevToml(dd),
+		createFlyToml(dd),
+	}
+
+	if cfg.Service.EnableEdgeDB {
+		opts = append(opts,
+			createEdgedbToml(dd),
+			createEdgedbDefault(dd),
+		)
 	}
 
 	if cfg.Service.EnableHTTP {
 		opts = append(opts,
 			createServicePackage(dd),
-		)
-	}
-
-	// deployment
-	if !cfg.Service.DisableDeployment {
-		opts = append(opts,
-			createDeploy(dd),
-			createManual(dd),
 		)
 	}
 
@@ -204,19 +209,6 @@ func createDocs(dd Delims) CreateFileFromTemplate {
 func createNatsCmdHelper(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
 		return cfg.Service.createOrPrintFile("cmd/nats.go", tpl.NatsHelper(), dd)
-	}
-}
-
-// only if deployment is enabled
-func createDeploy(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("cmd/deploy.go", tpl.Deploy(), dd)
-	}
-}
-
-func createManual(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("cmd/manual.go", tpl.Manual(), dd)
 	}
 }
 
@@ -340,15 +332,16 @@ func createEdgedbDefault(dd Delims) CreateFileFromTemplate {
 		return cfg.Service.createOrPrintFile("dbschema/default.esdl", tpl.DefaultEsdl(), dd)
 	}
 }
-func createEdgeDBInfra(dd Delims) CreateFileFromTemplate {
+
+func createFlyDevToml(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("infra/edgedb.yaml", tpl.EdgeDBInfra(), dd)
+		return cfg.Service.createOrPrintFile("fly.dev.toml", tpl.FlyDev(), dd)
 	}
 }
 
-func createNatsInfra(dd Delims) CreateFileFromTemplate {
+func createFlyToml(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("infra/nats.yaml", tpl.NATSInfra(), dd)
+		return cfg.Service.createOrPrintFile("fly.toml", tpl.FlyProd(), dd)
 	}
 }
 
