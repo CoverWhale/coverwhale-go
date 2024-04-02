@@ -20,9 +20,11 @@ package service
 
 import (
 	"encoding/json"
+	"time"
 
 	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
 	"github.com/CoverWhale/logr"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 )
 
@@ -64,6 +66,41 @@ func Subtract(logger *logr.Logger, r micro.Request) error {
 
 	r.RespondJSON(resp)
 	return nil
+}
+
+func WatchForConfig(logger *logr.Logger, js nats.JetStreamContext) {
+	kv, err := js.KeyValue("configs")
+	if err != nil {
+		logr.Fatal(err)
+	}
+
+	w, err := kv.Watch("{{ .Name }}.log_level")
+	if err != nil {
+		logr.Fatal(err)
+	}
+
+	for val := range w.Updates() {
+		if val == nil {
+			continue
+		}
+
+		level := string(val.Value())
+		if level == "info" {
+			logger.Level = logr.InfoLevel
+		}
+
+		if level == "error" {
+			logger.Level = logr.ErrorLevel
+		}
+
+		if level == "debug" {
+			logger.Level = logr.DebugLevel
+		}
+
+		logger.Infof("set log level to %s", level)
+	}
+
+	time.Sleep(5 * time.Second)
 }
 `)
 }

@@ -264,6 +264,12 @@ func start(cmd *cobra.Command, args []string ) error {
     }
     defer nc.Close()
 
+    // uncomment for config watching
+    //js, err := nc.JetStream()
+    //if err != nil {
+    //    return err
+    //}
+
     // uncomment to enable logging over NATS
     //logger.SetOutput(cwnats.NewNatsLogger("prime.logs.{{ .Name }}", nc))
     
@@ -298,7 +304,10 @@ func start(cmd *cobra.Command, args []string ) error {
 	micro.WithEndpointSubject("subtract.get"),
     )
     
+    // uncomment to enable config watching
+    //go service.WatchForConfig(logger, js)
     {{ if not .EnableHTTP }}
+    logger.Infof("service %s %s started", svc.Info().Name, svc.Info().ID)
     cwnats.HandleNotify(svc)
     {{- end }}
 
@@ -456,13 +465,18 @@ import (
 // bindNatsFlags binds nats flag values to viper
 func bindNatsFlags(cmd *cobra.Command) {
     viper.BindPFlag("nats_urls", cmd.Flags().Lookup("nats-urls"))
-    viper.BindPFlag("credentials_file", cmd.Flags().Lookup("credentials-file"))   
+    viper.BindPFlag("nats_seed", cmd.Flags().Lookup("nats-seed"))
+    viper.BindPFlag("nats_jwt", cmd.Flags().Lookup("nats-jwt"))
+    viper.BindPFlag("nats_secret", cmd.Flags().Lookup("nats-secret"))
+    viper.BindPFlag("credentials_file", cmd.Flags().Lookup("credentials-file"))
 }
 
 // natsFlags adds the nats flags to the passed in cobra command
 func natsFlags(cmd *cobra.Command) {
-    cmd.PersistentFlags().String("nats-urls", "nats://localhost:4222", "NATS server URL(s)")
-    cmd.PersistentFlags().String("credentials-file", "", "Path to NATS user credential file")
+    cmd.PersistentFlags().String("nats-jwt", "", "NATS JWT as a string")
+    cmd.PersistentFlags().String("nats-seed", "", "NATS seed as a string")
+    cmd.PersistentFlags().String("credentials-file", "", "Path to NATS user credentials file")
+    cmd.PersistentFlags().String("nats-urls", "nats://localhost:4222", "NATS URLs")
 }
 
 // bindServiceFlags binds the secret flag values to viper
@@ -476,214 +490,6 @@ func serviceFlags(cmd *cobra.Command) {
     cmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
     cmd.PersistentFlags().String("tempo-url", "", "URL for Tempo")
 }
-`)
-}
-
-func Deploy() []byte {
-	return []byte(`package cmd
-
-import (
-    "github.com/spf13/cobra"
-    "github.com/spf13/viper"
-)
-
-var deployCmd = &cobra.Command{
-    Use:   "deploy",
-    Short: "Create k8s deployment info",
-    PersistentPreRun: bindDeployCmdFlags,
-}
-
-func init() {
-    rootCmd.AddCommand(deployCmd)
-    deployCmd.PersistentFlags().String("name", "{{ .Name }}", "Name of the app")
-    deployCmd.PersistentFlags().String("registry", "k3d-{{ .Name }}-registry:50000", "Container registry")
-    deployCmd.PersistentFlags().String("namespace", "default", "Deployment Namespace")
-    deployCmd.PersistentFlags().String("version", "latest", "Container version (tag)")
-    {{ if .EnableHTTP }}deployCmd.PersistentFlags().Int("service-port", 80, "k8s service port"){{- end }}
-    {{ if .EnableHTTP }}deployCmd.PersistentFlags().String("service-name", "{{ .Name }}", "k8s service name"){{- end }}
-    {{ if .EnableHTTP }}deployCmd.PersistentFlags().String("ingress-host", "{{ .Name }}.127.0.0.1.nip.io", "k8s ingresss host"){{- end }}
-    {{ if .EnableHTTP }}deployCmd.PersistentFlags().Bool("ingress-tls", false, "k8s ingresss tls"){{- end }}
-    {{ if .EnableHTTP }}deployCmd.PersistentFlags().String("ingress-class", "", "k8s ingresss class name"){{- end }}
-    {{ if .EnableHTTP }}deployCmd.PersistentFlags().StringToString("ingress-annotations", map[string]string{}, "Annotations for the ingress"){{- end }}
-    natsFlags(deployCmd)
-    {{ if .EnableHTTP }}serviceFlags(deployCmd){{- end }}
-}
-
-func bindDeployCmdFlags(cmd *cobra.Command, args []string) {
-    viper.BindPFlag("name", cmd.Flags().Lookup("name"))
-    viper.BindPFlag("registry", cmd.Flags().Lookup("registry"))
-    viper.BindPFlag("namespace", cmd.Flags().Lookup("namespace"))
-    viper.BindPFlag("version", cmd.Flags().Lookup("version"))
-    {{ if .EnableHTTP }}viper.BindPFlag("service_port", cmd.Flags().Lookup("service-port")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("service_name", cmd.Flags().Lookup("service-name")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("ingress_host", cmd.Flags().Lookup("ingress-host")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("ingress_tls", cmd.Flags().Lookup("ingress-tls")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("ingress_class", cmd.Flags().Lookup("ingress-class")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("insecure", cmd.Flags().Lookup("insecure")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("ingress_annotations", cmd.Flags().Lookup("ingress-annotations")){{- end }}
-    {{ if .EnableHTTP }}viper.BindPFlag("tempo_url", cmd.Flags().Lookup("tempo-url")){{- end }}
-    {{ if .EnableHTTP }}bindServiceFlags(cmd){{- end}}
-    bindNatsFlags(cmd)
-}
-`)
-}
-
-func Manual() []byte {
-	return []byte(`{{ $tick := "` + "`" + `" -}}
-package cmd
-
-import (
-    "fmt"
-    
-    "github.com/CoverWhale/kopts"
-    "github.com/spf13/cobra"
-    "github.com/spf13/viper"
-    corev1 "k8s.io/api/core/v1"
-)
-
-var manualCmd = &cobra.Command{
-    Use:   "manual",
-    Short: "Get manual k8s deployment",
-    RunE:  manual,
-}
-
-func init() {
-    deployCmd.AddCommand(manualCmd)
-}
-
-// manual creates the manual yaml
-func manual(cmd *cobra.Command, args []string) error {
-
-    dep, err := printDeployment()
-    if err != nil {
-        return err
-    }
-    
-{{ if .EnableHTTP }}
-    service, err := printService()
-    if err != nil {
-        return err
-    }
-    
-    ingress, err := printIngress()
-    if err != nil {
-        return err
-    }
-{{- end }}
-    
-    fmt.Printf("%s{{ if .EnableHTTP }}%s%s{{ end }}", dep,{{if .EnableHTTP }} service, ingress{{ end }})
-    
-    return nil
-}
-
-func printDeployment() (string, error) {
-    image := fmt.Sprintf("%s/%s:%s", viper.GetString("registry"), viper.GetString("name"), viper.GetString("version"))
-    natsSecret := corev1.VolumeSource{
-        Secret: &corev1.SecretVolumeSource{
-            SecretName: "{{ .Name | ToLower }}-nats",
-        },
-    }
-    
-{{ if .EnableHTTP }}
-    probe := kopts.HTTPProbe{
-        Path:          "/healthz",
-        Port:          viper.GetInt("port"),
-        PeriodSeconds: 10,
-        InitialDelay:  10,
-    }
-{{- end}}
-
-{{ if .EnableHTTP }}
-    // k8s doesn't like dashes in env names
-    //replacer := strings.NewReplacer("-", "_")    
-{{ end}}
-    c := kopts.NewContainer(viper.GetString("name"),
-        kopts.ContainerImage(image),
-        kopts.ContainerArgs([]string{"service", "start"}),
-        {{- if .EnableHTTP }}kopts.ContainerPort("http", viper.GetInt("port")),
-        // this needs set because K8s will create an environment variable in the pod with the name of the service underscore "port". This overrides that.
-        kopts.ContainerEnvVar(replacer.Replace("{{ .Name | ToUpper }}_PORT"), fmt.Sprintf("%d", viper.GetInt("port"))),
-        kopts.ContainerLivenessProbeHTTP(probe),{{- end }}
-        kopts.ContainerEnvVar("{{ .Name | ToUpper }}_NATS_URLS", viper.GetString("nats_urls")),
-    )
-
-    if viper.GetString("credentials_file") != "" {
-        kopts.ContainerEnvVar("{{ .Name | ToUpper}}_CREDENTIALS_FILE", viper.GetString("credentials_file"))(&c)
-	kopts.ContainerVolumeSource("{{ .Name | ToLower }}-nats", "/creds", natsSecret)(&c)
-    }
-
-    p := kopts.NewPodSpec("{{ .Name }}",
-        kopts.PodLabel("app", viper.GetString("name")),
-        kopts.PodContainer(c),
-    )
-    
-    d := kopts.NewDeployment("{{ .Name }}",
-        kopts.DeploymentNamespace(viper.GetString("namespace")),
-        kopts.DeploymentSelector("app", viper.GetString("name")),
-        kopts.DeploymentPodSpec(p),
-    )
-
-    if viper.GetString("credentials_file") != "" {
-        kopts.ContainerVolumeSource("{{ .Name | ToLower }}-nats", "/creds", natsSecret)(&c)
-        d.Spec.Template.Spec.Volumes = []corev1.Volume{
-            {
-                Name: "{{ .Name | ToLower }}-nats",
-                VolumeSource: natsSecret,
-            },
-        }
-    }
-    
-    return kopts.MarshalYaml(d)
-
-}
-
-{{ if .EnableHTTP }}
-func printService() (string, error) {
-    service := kopts.NewService(viper.GetString("service_name"),
-        kopts.ServiceNamespace(viper.GetString("namespace")),
-        kopts.ServicePort(viper.GetInt("service_port"), viper.GetInt("port")),
-        kopts.ServiceSelector("app", viper.GetString("name")),
-    )
-    
-    return kopts.MarshalYaml(service)
-}
-
-func printIngress() (string, error) {
-    r := kopts.Rule{
-        Host: viper.GetString("ingress_host"),
-        TLS:  viper.GetBool("ingress_tls"),
-        Paths: []kopts.Path{
-            {
-                Name:    "/",
-                Service: viper.GetString("name"),
-                Port:    viper.GetInt("service_port"),
-                Type:    "Prefix",
-            },
-        },
-    }
-    
-    ingress := kopts.NewIngress(viper.GetString("name"),
-        kopts.IngressNamespace(viper.GetString("namespace")),
-        kopts.IngressRule(r),
-    )
-    
-    ingress.Annotations = map[string]string{
-        "external-dns.alpha.kubernetes.io/hostname": viper.GetString("ingress_host"),
-        "alb.ingress.kubernetes.io/listen-ports":    fmt.Sprintf({{ $tick }}[{"HTTP":%d,"HTTPS": 443}]{{ $tick }}, viper.GetInt("service_port")),
-    }
-    
-    for k, v := range viper.GetStringMapString("ingress_annotations") {
-        ingress.Annotations[k] = v
-    }
-    
-    if viper.GetBool("ingress_tls") {
-        f := kopts.IngressClass(viper.GetString("ingress_class"))
-        f(&ingress)
-    }
-    
-    return kopts.MarshalYaml(ingress)
-}
-{{- end }}
 `)
 }
 
