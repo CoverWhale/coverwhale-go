@@ -335,13 +335,13 @@ func createEdgedbDefault(dd Delims) CreateFileFromTemplate {
 
 func createFlyDevToml(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("fly.dev.toml", tpl.FlyDev(), dd)
+		return cfg.Service.createOrPrintFile("fly.toml", tpl.FlyDev(), dd)
 	}
 }
 
 func createFlyToml(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("fly.toml", tpl.FlyProd(), dd)
+		return cfg.Service.createOrPrintFile("fly.prod.toml", tpl.FlyProd(), dd)
 	}
 }
 
