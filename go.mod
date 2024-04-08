@@ -1,6 +1,6 @@
 module github.com/CoverWhale/coverwhale-go
 
-go 1.22
+go 1.22.0
 
 require (
 	cuelang.org/go v0.4.3
