@@ -172,7 +172,7 @@ jobs:
         uses: actions/checkout@v2
       - name: fly deploy
         uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --config fly.dev.toml
+      - run: flyctl deploy --config fly.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_DEV_API_TOKEN }}
 `)
@@ -201,7 +201,7 @@ jobs:
         uses: actions/checkout@v2
       - name: fly deploy
         uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --config fly.toml
+      - run: flyctl deploy --config fly.prod.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 `)
