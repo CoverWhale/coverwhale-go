@@ -187,7 +187,7 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 	reqWrapped := cwmiddleware.RequestID(subRouter)
 
 	for _, m := range middleware {
-		m(reqWrapped)
+		reqWrapped = m(reqWrapped)
 	}
 
 	// wrap subrouter to catch all middleware and total metrics for the subrouter
