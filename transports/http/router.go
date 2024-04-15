@@ -202,7 +202,7 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 
 	s.Exporter.Metrics = append(s.Exporter.Metrics, counter, hist)
 
-	s.Router.Handle(prefixWithSlash, cwmiddleware.CodeStats(http.StripPrefix(stripped, reqWrapped), counter, hist))
+	s.Router.Handle(prefixWithSlash, cwmiddleware.Logging(cwmiddleware.CodeStats(http.StripPrefix(stripped, reqWrapped), counter, hist)))
 
 	return s
 }
