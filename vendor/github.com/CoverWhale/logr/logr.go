@@ -29,7 +29,8 @@ type Level struct {
 }
 
 var (
-	std = NewLogger()
+	std           = NewLogger()
+	format string = "2006-01-02T15:04:05"
 )
 
 type Logger struct {
@@ -66,7 +67,6 @@ func NewLogger() *Logger {
 	l := getLevel(level)
 	logger := log.Default()
 	logger.SetFlags(0)
-	logger.SetPrefix(fmt.Sprintf("timestamp=%s ", time.Now().Format("2006-01-02T15:04:05")))
 	return &Logger{
 		l,
 		logger,
@@ -77,9 +77,9 @@ func NewLogger() *Logger {
 func (l *Logger) log(lvl Level, s interface{}) {
 	if lvl.val <= l.Level.val {
 		if l.contextMessage != "" {
-			l.Printf(`level=%s msg="%s"%s`, lvl.name, s, l.contextMessage)
+			l.Printf(`timestamp=%s level=%s msg="%s"%s`, time.Now().Format(format), lvl.name, s, l.contextMessage)
 		} else {
-			l.Printf(`level=%s msg="%s"`, lvl.name, s)
+			l.Printf(`timestamp=%s level=%s msg="%s"`, time.Now().Format(format), lvl.name, s)
 		}
 	}
 }
@@ -91,7 +91,7 @@ func (l *Logger) clone() *Logger {
 
 func (l *Logger) WithContext(s map[string]string) *Logger {
 	c := l.clone()
-	context := ""
+	context := l.contextMessage
 	for k, v := range s {
 		context = fmt.Sprintf("%s %s=%s", context, k, v)
 	}
