@@ -497,6 +497,8 @@ func NatsHelper() []byte {
 	return []byte(`package cmd 
 
 import (
+	"os"
+
         "github.com/CoverWhale/logr"
         "github.com/nats-io/jsm.go/natscontext"
         "github.com/nats-io/nats.go"
@@ -506,7 +508,9 @@ import (
 func newNatsConnection(name string) (*nats.Conn, error) {
         opts := []nats.Option{nats.Name(name)}
 
-        if viper.GetString("credentials_file") == "" && viper.GetString("nats_jwt") == "" {
+        _, ok := os.LookupEnv("USER")
+
+        if viper.GetString("credentials_file") == "" && viper.GetString("nats_jwt") == "" && ok {
                 logr.Debug("using NATS context")
                 return natscontext.Connect("", opts...)
         }
