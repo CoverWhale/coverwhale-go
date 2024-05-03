@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	cuelang.org/go v0.4.3
 	github.com/99designs/gqlgen v0.17.43
-	github.com/CoverWhale/gupdate v0.0.0-20240503181825-a91d972360ec
+	github.com/CoverWhale/gupdate v0.0.0-20240503194054-5c0c43cc9750
 	github.com/CoverWhale/logr v0.0.0-20240403181324-04930f399397
 	github.com/briandowns/spinner v1.23.0
 	github.com/invopop/jsonschema v0.12.0
@@ -25,7 +25,7 @@ require (
 )
 
 require (
-	aead.dev/minisign v0.2.0 // indirect
+	aead.dev/minisign v0.2.1 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -77,11 +77,11 @@ require (
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231106174013-bbf56f31fb17 // indirect

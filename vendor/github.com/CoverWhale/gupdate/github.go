@@ -1,12 +1,10 @@
 package gupdate
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -14,11 +12,12 @@ import (
 var githubReleaseURL = "https://api.github.com/repos"
 
 type GitHubProject struct {
-	Owner    string `json:"owner"`
-	Name     string `json:"name,omitempty"`
-	Platform string `json:"platform"`
-	Arch     string `json:"arch"`
-	Checksum string `json:"checksum"`
+	Owner          string `json:"owner"`
+	Name           string `json:"name,omitempty"`
+	Platform       string `json:"platform"`
+	Arch           string `json:"arch"`
+	Checksum       string `json:"checksum"`
+	CheckSumGetter CheckSumGetter
 }
 
 type GitHubReleases []GitHubRelease
@@ -152,7 +151,7 @@ func (g GitHubProject) getLatestRelease() (Release, error) {
 
 	for _, v := range ghr.Assets {
 		if strings.Contains(v.Name, "checksum") {
-			checksum, err := getChecksums(v.BrowserDownloadURL)
+			checksum, err := g.getChecksums(v.BrowserDownloadURL)
 			if err != nil {
 				return release, err
 			}
@@ -166,6 +165,16 @@ func (g GitHubProject) getLatestRelease() (Release, error) {
 	}
 
 	return release, nil
+}
+
+func (g GitHubProject) getChecksums(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	return g.CheckSumGetter.GetChecksum(resp.Body)
 }
 
 func sendRequest(url string) ([]byte, error) {
@@ -192,28 +201,4 @@ func sendRequest(url string) ([]byte, error) {
 	}
 
 	return data, nil
-}
-
-func getChecksums(url string) (string, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	r := csv.NewReader(resp.Body)
-	r.Comma = ' '
-
-	sums, err := r.ReadAll()
-	if err != nil {
-		return "", err
-	}
-
-	for _, v := range sums {
-		if v[2] != "" && strings.Contains(v[2], strings.ToLower(runtime.GOOS)) && strings.Contains(v[2], strings.ToLower(runtime.GOARCH)) {
-			return v[0], nil
-		}
-	}
-
-	return "", fmt.Errorf("valid checksum not found")
 }

@@ -1,5 +1,5 @@
-# aead.dev/minisign v0.2.0
-## explicit; go 1.16
+# aead.dev/minisign v0.2.1
+## explicit; go 1.20
 aead.dev/minisign
 # cuelang.org/go v0.4.3
 ## explicit; go 1.17
@@ -84,7 +84,7 @@ cuelang.org/go/pkg/uuid
 github.com/99designs/gqlgen/graphql
 github.com/99designs/gqlgen/graphql/errcode
 github.com/99designs/gqlgen/graphql/executor
-# github.com/CoverWhale/gupdate v0.0.0-20240503181825-a91d972360ec
+# github.com/CoverWhale/gupdate v0.0.0-20240503194054-5c0c43cc9750
 ## explicit; go 1.22.2
 github.com/CoverWhale/gupdate
 # github.com/CoverWhale/logr v0.0.0-20240403181324-04930f399397
@@ -380,7 +380,7 @@ go.opentelemetry.io/proto/otlp/trace/v1
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# golang.org/x/crypto v0.18.0
+# golang.org/x/crypto v0.22.0
 ## explicit; go 1.18
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/curve25519
@@ -400,7 +400,7 @@ golang.org/x/exp/slices
 golang.org/x/exp/slog
 golang.org/x/exp/slog/internal
 golang.org/x/exp/slog/internal/buffer
-# golang.org/x/net v0.19.0
+# golang.org/x/net v0.21.0
 ## explicit; go 1.18
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -415,7 +415,7 @@ golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.16.0
+# golang.org/x/term v0.19.0
 ## explicit; go 1.18
 golang.org/x/term
 # golang.org/x/text v0.14.0

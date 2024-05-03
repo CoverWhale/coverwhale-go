@@ -35,15 +35,16 @@ func SignatureFromFile(file string) (Signature, error) {
 //
 // A signature is generated when signing a message with
 // a private key:
-//   signature = Sign(privateKey, message)
+//
+//	signature = Sign(privateKey, message)
 //
 // The signature of a message can then be verified with the
 // corresponding public key:
-//   if Verify(publicKey, message, signature) {
-//      // => signature is valid
-//      // => message has been signed with correspoding private key
-//   }
 //
+//	if Verify(publicKey, message, signature) {
+//	   // => signature is valid
+//	   // => message has been signed with correspoding private key
+//	}
 type Signature struct {
 	_ [0]func() // enforce named assignment and prevent direct comparison
 
@@ -106,6 +107,8 @@ func (s Signature) String() string {
 	buffer.WriteByte('\n')
 
 	buffer.WriteString(base64.StdEncoding.EncodeToString(s.CommentSignature[:]))
+	buffer.WriteByte('\n')
+
 	return buffer.String()
 }
 
