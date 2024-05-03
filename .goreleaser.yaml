@@ -3,6 +3,9 @@ env:
   
 project_name: cwgoctl
 
+archives:
+  - format: binary
+
 builds:
   - ldflags: "-extldflags= -w -X 'github.com/CoverWhale/coverwhale-go/cmd.Version={{.Tag}}'"
     flags:
