@@ -37,10 +37,11 @@ func init() {
 func update(cmd *cobra.Command, args []string) error {
 
 	gh := gupdate.GitHubProject{
-		Name:     "coverwhale-go",
-		Owner:    "CoverWhale",
-		Platform: runtime.GOOS,
-		Arch:     runtime.GOARCH,
+		Name:           "coverwhale-go",
+		Owner:          "CoverWhale",
+		Platform:       runtime.GOOS,
+		Arch:           runtime.GOARCH,
+		CheckSumGetter: gupdate.Goreleaser{},
 	}
 
 	s := spinner.New(spinner.CharSets[33], 100*time.Millisecond)
