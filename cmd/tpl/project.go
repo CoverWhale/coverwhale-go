@@ -197,12 +197,14 @@ import (
 
     cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
     {{ end }}
+    "fmt"
     "{{ .Module }}/service"
     "github.com/CoverWhale/logr"
     "github.com/invopop/jsonschema"
     "github.com/nats-io/nats.go/micro"
     cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
     "github.com/spf13/cobra"
+    "github.com/spf13/viper"
     {{ if and .EnableHTTP .EnableTelemetry -}}"github.com/CoverWhale/coverwhale-go/metrics"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"{{- end }}
     {{ if .EnableGraphql }}"github.com/99designs/gqlgen/graphql/handler"
@@ -219,6 +221,17 @@ var startCmd = &cobra.Command{
 func init() {
 	// attach start subcommand to service subcommand
 	serviceCmd.AddCommand(startCmd)
+}
+
+// set subject based on whether we want dev traffic routed locally to the service through traffic shaping. Use megazord to 
+// set the traffic percentage to be routed to your local system. 
+// The base subject must always begin with prime/local.services.<service-name>.*
+func baseSubject() string {
+	if viper.GetBool("use_traffic_shaping") {
+		return "local.services.{{ .Name }}.*.math"
+	}
+
+	return "prime.service.{{ .Name }}.*.math"
 }
 
 func start(cmd *cobra.Command, args []string ) error {
@@ -279,10 +292,11 @@ func start(cmd *cobra.Command, args []string ) error {
     }
     
     // add a singular handler as an endpoint
-    svc.AddEndpoint("specific", cwnats.ErrorHandler(logger, service.SpecificHandler), micro.WithEndpointSubject("prime.services.{{ .Name }}.*.specific.get"))
+    svc.AddEndpoint("specific", cwnats.ErrorHandler(logger, service.SpecificHandler), micro.WithEndpointSubject(fmt.Sprintf("%s.specific.get", baseSubject())))
     
-    // add a handler group
-    grp := svc.AddGroup("prime.services.{{ .Name }}.*.math", micro.WithGroupQueueGroup("{{ .Name }}"))
+    // add a handler group. The base subject is defined in AddGroup and then the specific handler subjects are defined 
+    // with micro.WithEndpointSubject
+    grp := svc.AddGroup(baseSubject(), micro.WithGroupQueueGroup("{{ .Name }}"))
     grp.AddEndpoint("add",
     	cwnats.ErrorHandler(logger, service.Add),
     	micro.WithEndpointMetadata(map[string]string{
@@ -469,6 +483,7 @@ func bindNatsFlags(cmd *cobra.Command) {
     viper.BindPFlag("nats_jwt", cmd.Flags().Lookup("nats-jwt"))
     viper.BindPFlag("nats_secret", cmd.Flags().Lookup("nats-secret"))
     viper.BindPFlag("credentials_file", cmd.Flags().Lookup("credentials-file"))
+    viper.BindPFlag("use_traffic_shaping", cmd.Flags().Lookup("use-traffic-shaping"))
 }
 
 // natsFlags adds the nats flags to the passed in cobra command
@@ -477,6 +492,7 @@ func natsFlags(cmd *cobra.Command) {
     cmd.PersistentFlags().String("nats-seed", "", "NATS seed as a string")
     cmd.PersistentFlags().String("credentials-file", "", "Path to NATS user credentials file")
     cmd.PersistentFlags().String("nats-urls", "nats://localhost:4222", "NATS URLs")
+    cmd.PersistentFlags().Bool("use-traffic-shaping", false, "Local development connection")
 }
 
 // bindServiceFlags binds the secret flag values to viper
