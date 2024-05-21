@@ -118,6 +118,7 @@ func TestErrHandlerServeHTTP(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) error {
 					return NewClientError(ErrTestingError, 400)
 				},
+
 				Logger: logr.NewLogger(),
 			},
 			err:    NewClientError(ErrTestingError, 400),
@@ -146,6 +147,60 @@ func TestErrHandlerServeHTTP(t *testing.T) {
 
 			if status := rr.Code; status != v.status {
 				t.Errorf("Expected status %d but got %d", v.status, status)
+			}
+		})
+	}
+
+}
+
+func TestJsonHandlerServeHTTP(t *testing.T) {
+	tt := []struct {
+		name        string
+		handler     ErrHandler
+		err         error
+		status      int
+		contentType string
+	}{
+		{
+			name: "400 error", handler: ErrHandler{
+				Handler: JsonHandler(func(w http.ResponseWriter, r *http.Request) error {
+					return NewClientError(ErrTestingError, 400)
+				}),
+
+				Logger: logr.NewLogger(),
+			},
+			err:         NewClientError(ErrTestingError, 400),
+			status:      400,
+			contentType: "application/json",
+		},
+		{
+			name: "500 error", handler: ErrHandler{
+				Handler: JsonHandler(func(w http.ResponseWriter, r *http.Request) error {
+					return ErrInternalError
+				}),
+				Logger: logr.NewLogger(),
+			},
+			err:         ErrInternalError,
+			status:      500,
+			contentType: "application/json",
+		},
+	}
+
+	for _, v := range tt {
+		t.Run(v.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/testing", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rr := httptest.NewRecorder()
+			v.handler.ServeHTTP(rr, req)
+
+			if status := rr.Code; status != v.status {
+				t.Errorf("Expected status %d but got %d", v.status, status)
+			}
+
+			if contentType := rr.Header().Get("Content-Type"); contentType != "application/json" {
+				t.Errorf("Expected content-type %s but got %s", v.contentType, contentType)
 			}
 		})
 	}
