@@ -67,6 +67,13 @@ type Route struct {
 	Handler http.Handler
 }
 
+func JsonHandler(h handlerWithError) handlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		w.Header().Add("Content-Type", "application/json")
+		return h(w, r)
+	}
+}
+
 func healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
