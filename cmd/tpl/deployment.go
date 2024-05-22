@@ -182,8 +182,8 @@ func TaggedReleaseWorkflow() []byte {
 	return []byte(`name: deploy prod
 on:
   push:
-    branches:
-      - main
+    tags:
+      - '*'
 permissions:
   id-token: write
   contents: read
