@@ -326,8 +326,8 @@ func start(cmd *cobra.Command, args []string ) error {
     health := func(ch chan<- string, s micro.Service) {
             a := <-nc.StatusChanged()
             ch <- a.String()
-
     }
+
     return cwnats.HandleNotify(svc, health)
     {{- end }}
 

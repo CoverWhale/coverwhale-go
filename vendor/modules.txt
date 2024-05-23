@@ -1,5 +1,5 @@
-# aead.dev/minisign v0.2.1
-## explicit; go 1.20
+# aead.dev/minisign v0.3.0
+## explicit; go 1.21
 aead.dev/minisign
 # cuelang.org/go v0.4.3
 ## explicit; go 1.17
@@ -84,10 +84,10 @@ cuelang.org/go/pkg/uuid
 github.com/99designs/gqlgen/graphql
 github.com/99designs/gqlgen/graphql/errcode
 github.com/99designs/gqlgen/graphql/executor
-# github.com/CoverWhale/gupdate v0.0.0-20240503194054-5c0c43cc9750
+# github.com/CoverWhale/gupdate v0.0.2
 ## explicit; go 1.22.2
 github.com/CoverWhale/gupdate
-# github.com/CoverWhale/logr v0.0.0-20240403181324-04930f399397
+# github.com/CoverWhale/logr v0.0.0-20240513164108-a4fd5504b303
 ## explicit; go 1.19
 github.com/CoverWhale/logr
 # github.com/agnivade/levenshtein v1.1.1
@@ -120,7 +120,7 @@ github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/emicklei/proto v1.6.15
 ## explicit; go 1.12
 github.com/emicklei/proto
-# github.com/fatih/color v1.14.1
+# github.com/fatih/color v1.17.0
 ## explicit; go 1.17
 github.com/fatih/color
 # github.com/felixge/httpsnoop v1.0.3
@@ -188,7 +188,7 @@ github.com/mailru/easyjson/jwriter
 # github.com/mattn/go-colorable v0.1.13
 ## explicit; go 1.15
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.19
+# github.com/mattn/go-isatty v0.0.20
 ## explicit; go 1.15
 github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
@@ -229,7 +229,7 @@ github.com/newrelic/go-agent/v3/internal/logger
 github.com/newrelic/go-agent/v3/internal/sysinfo
 github.com/newrelic/go-agent/v3/internal/utilization
 github.com/newrelic/go-agent/v3/newrelic
-# github.com/pelletier/go-toml/v2 v2.2.1
+# github.com/pelletier/go-toml/v2 v2.2.2
 ## explicit; go 1.16
 github.com/pelletier/go-toml/v2
 github.com/pelletier/go-toml/v2/internal/characters
@@ -380,7 +380,7 @@ go.opentelemetry.io/proto/otlp/trace/v1
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# golang.org/x/crypto v0.22.0
+# golang.org/x/crypto v0.23.0
 ## explicit; go 1.18
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/curve25519
@@ -393,7 +393,7 @@ golang.org/x/crypto/nacl/secretbox
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/scrypt
-# golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f
+# golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 ## explicit; go 1.20
 golang.org/x/exp/constraints
 golang.org/x/exp/slices
@@ -408,17 +408,17 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.19.0
+# golang.org/x/sys v0.20.0
 ## explicit; go 1.18
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.19.0
+# golang.org/x/term v0.20.0
 ## explicit; go 1.18
 golang.org/x/term
-# golang.org/x/text v0.14.0
+# golang.org/x/text v0.15.0
 ## explicit; go 1.18
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal
