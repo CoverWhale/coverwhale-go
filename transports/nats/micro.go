@@ -47,13 +47,24 @@ func NewClientError(err error, code int) ClientError {
 	}
 }
 
-func HandleNotify(s micro.Service) {
+func HandleNotify(s micro.Service, healthFuncs ...func(chan<- string, micro.Service)) error {
+	stopChan := make(chan string, 1)
+	for _, v := range healthFuncs {
+		go v(stopChan, s)
+	}
+
+	go handleNotify(stopChan)
+
+	logr.Info(<-stopChan)
+	return s.Stop()
+}
+
+func handleNotify(stopChan chan<- string) {
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-sigTerm
-	logr.Infof("received signal: %s", sig)
-	s.Stop()
+	stopChan <- fmt.Sprintf("received signal: %v", sig)
 }
 
 // ErrorHandler wraps a normal micro endpoint and allows for returning errors natively. Errors are
