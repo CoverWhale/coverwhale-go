@@ -77,9 +77,9 @@ func NewLogger() *Logger {
 func (l *Logger) log(lvl Level, s interface{}) {
 	if lvl.val <= l.Level.val {
 		if l.contextMessage != "" {
-			l.Printf(`timestamp=%s level=%s msg="%s"%s`, time.Now().Format(format), lvl.name, s, l.contextMessage)
+			l.Printf(`timestamp=%s level=%s msg=%q%s`, time.Now().Format(format), lvl.name, s, l.contextMessage)
 		} else {
-			l.Printf(`timestamp=%s level=%s msg="%s"`, time.Now().Format(format), lvl.name, s)
+			l.Printf(`timestamp=%s level=%s msg=%q`, time.Now().Format(format), lvl.name, s)
 		}
 	}
 }
@@ -132,12 +132,12 @@ func (l *Logger) Debugf(format string, s ...interface{}) {
 }
 
 func (l *Logger) Fatal(s interface{}) {
-	m := fmt.Sprintf(`level=FATAL msg="%s"`, s)
+	m := fmt.Sprintf(`level=FATAL msg=%s`, s)
 	l.Logger.Fatal(m)
 }
 
 func (l *Logger) Fatalf(format string, s ...interface{}) {
-	f := fmt.Sprintf(`level=FATAL msg="%s"`, format)
+	f := fmt.Sprintf(`level=FATAL msg=%s`, format)
 	m := fmt.Sprintf(f, s...)
 	l.Logger.Fatal(m)
 }

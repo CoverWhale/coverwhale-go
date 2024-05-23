@@ -1,6 +1,21 @@
+// Copyright 2024 Cover Whale Insurance Solutions Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package gupdate
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,13 +26,19 @@ import (
 
 var githubReleaseURL = "https://api.github.com/repos"
 
+type requestOpts struct {
+	url    string
+	accept string
+}
+
 type GitHubProject struct {
-	Owner          string `json:"owner"`
-	Name           string `json:"name,omitempty"`
-	Platform       string `json:"platform"`
-	Arch           string `json:"arch"`
-	Checksum       string `json:"checksum"`
-	CheckSumGetter CheckSumGetter
+	Owner        string `json:"owner"`
+	Name         string `json:"name,omitempty"`
+	Platform     string `json:"platform"`
+	Arch         string `json:"arch"`
+	ChecksumFunc ChecksumFunc
+	Token        string
+	ReqFunc      RequestFunc
 }
 
 type GitHubReleases []GitHubRelease
@@ -101,9 +122,14 @@ type GitHubAssets struct {
 func (g GitHubProject) getAllReleases() ([]Release, error) {
 	var releases []Release
 	var ghr []GitHubRelease
+
+	if g.ChecksumFunc == nil {
+		return releases, fmt.Errorf("checksum function must be defined")
+	}
+
 	url := fmt.Sprintf("%s/%s/%s/releases/latest", githubReleaseURL, g.Owner, g.Name)
 
-	data, err := sendRequest(url)
+	data, err := g.sendRequest(requestOpts{url: url, accept: "applicatioin/vhd.github+json"})
 	if err != nil {
 		return releases, err
 	}
@@ -118,7 +144,7 @@ func (g GitHubProject) getAllReleases() ([]Release, error) {
 		}
 		for _, v := range release.Assets {
 			if strings.Contains(v.Name, strings.ToLower(g.Platform)) && strings.Contains(v.Name, strings.ToLower(g.Arch)) {
-				releases = append(releases, Release{URL: v.BrowserDownloadURL})
+				releases = append(releases, Release{URL: v.URL})
 			}
 		}
 	}
@@ -128,9 +154,14 @@ func (g GitHubProject) getAllReleases() ([]Release, error) {
 func (g GitHubProject) getLatestRelease() (Release, error) {
 	var release Release
 	var ghr GitHubRelease
+
+	if g.ChecksumFunc == nil {
+		return release, fmt.Errorf("checksum function must be defined")
+	}
+
 	url := fmt.Sprintf("%s/%s/%s/releases/latest", githubReleaseURL, g.Owner, g.Name)
 
-	data, err := sendRequest(url)
+	data, err := g.sendRequest(requestOpts{url: url, accept: "application/vnd.github+json"})
 	if err != nil {
 		return release, err
 	}
@@ -145,13 +176,13 @@ func (g GitHubProject) getLatestRelease() (Release, error) {
 
 	for _, v := range ghr.Assets {
 		if strings.Contains(v.Name, strings.ToLower(g.Platform)) && strings.Contains(v.Name, strings.ToLower(g.Arch)) {
-			release.URL = v.BrowserDownloadURL
+			release.URL = v.URL
 		}
 	}
 
 	for _, v := range ghr.Assets {
 		if strings.Contains(v.Name, "checksum") {
-			checksum, err := g.getChecksums(v.BrowserDownloadURL)
+			checksum, err := g.getChecksums(v.URL)
 			if err != nil {
 				return release, err
 			}
@@ -164,30 +195,42 @@ func (g GitHubProject) getLatestRelease() (Release, error) {
 		return release, fmt.Errorf("no results")
 	}
 
+	// set default release request function
+	release.ReqFunc = GitHubReqFunc(g.Token, "application/octet-stream")
+
 	return release, nil
 }
 
 func (g GitHubProject) getChecksums(url string) (string, error) {
-	resp, err := http.Get(url)
+	resp, err := g.sendRequest(requestOpts{url: url, accept: "application/octet-stream"})
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
-	return g.CheckSumGetter.GetChecksum(resp.Body)
+	return g.ChecksumFunc(bytes.NewReader(resp))
 }
 
-func sendRequest(url string) ([]byte, error) {
+func (g GitHubProject) sendRequest(opts requestOpts) ([]byte, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, opts.url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Accept", `application/vnd.github+json`)
+	if g.ReqFunc == nil && g.Token != "" {
+		g.ReqFunc = GitHubReqFunc(g.Token, opts.accept)
+	}
+
+	if g.ReqFunc != nil {
+		g.ReqFunc(req)
+	}
+
+	if g.ReqFunc == nil {
+		req.Header.Add("Accept", opts.accept)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -200,5 +243,19 @@ func sendRequest(url string) ([]byte, error) {
 		return nil, err
 	}
 
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("%d %s", resp.StatusCode, string(data))
+	}
+
 	return data, nil
+}
+
+func GitHubReqFunc(token, accept string) RequestFunc {
+	return func(req *http.Request) {
+		if token != "" {
+			bearer := fmt.Sprintf("Bearer %s", token)
+			req.Header.Add("Authorization", bearer)
+		}
+		req.Header.Add("Accept", accept)
+	}
 }
