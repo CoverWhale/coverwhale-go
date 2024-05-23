@@ -322,7 +322,13 @@ func start(cmd *cobra.Command, args []string ) error {
     //go service.WatchForConfig(logger, js)
     {{ if not .EnableHTTP }}
     logger.Infof("service %s %s started", svc.Info().Name, svc.Info().ID)
-    cwnats.HandleNotify(svc)
+
+    health := func(ch chan<- string, s micro.Service) {
+            a := <-nc.StatusChanged()
+            ch <- a.String()
+
+    }
+    return cwnats.HandleNotify(svc, health)
     {{- end }}
 
     {{ if .EnableHTTP }}
@@ -337,9 +343,9 @@ func start(cmd *cobra.Command, args []string ) error {
 
     go s.Serve(errChan)
     s.AutoHandleErrors(ctx, errChan)
+    return nil
     {{- end }}
 
-    return nil
 } 
 
 func schemaString(s any) string {
