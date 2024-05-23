@@ -202,6 +202,7 @@ import (
     "github.com/CoverWhale/logr"
     "github.com/invopop/jsonschema"
     "github.com/nats-io/nats.go/micro"
+    "github.com/nats-io/nats.go"
     cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
@@ -324,8 +325,8 @@ func start(cmd *cobra.Command, args []string ) error {
     logger.Infof("service %s %s started", svc.Info().Name, svc.Info().ID)
 
     health := func(ch chan<- string, s micro.Service) {
-            a := <-nc.StatusChanged()
-            ch <- a.String()
+            a := <-nc.StatusChanged(nats.CLOSED)
+            ch <- fmt.Sprintf("%s %s", a.String(), nc.LastError())
     }
 
     return cwnats.HandleNotify(svc, health)
