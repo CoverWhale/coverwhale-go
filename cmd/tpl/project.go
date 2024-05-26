@@ -389,7 +389,7 @@ var cfgFile string
 var cfg Config
 
 var rootCmd = &cobra.Command{
-    Use:   "{{ .Name }}",
+    Use:   "{{ .Name }}ctl",
     Short: "The app description",
 }
 var replacer = strings.NewReplacer("-", "_")
