@@ -24,7 +24,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "cwgo",
+	Use:   "cwgoctl",
 	Short: "Create an opinionated application",
 }
 
