@@ -14,11 +14,11 @@ func (c ClientError) Error() string {
 	return c.Details
 }
 
-func (c *ClientError) Body() []byte {
+func (c ClientError) Body() []byte {
 	return []byte(fmt.Sprintf(`{"error": "%s"}`, c.Details))
 }
 
-func (c *ClientError) Code() int {
+func (c ClientError) Code() int {
 	return c.Status
 }
 
