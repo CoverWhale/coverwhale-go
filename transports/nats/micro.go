@@ -18,6 +18,8 @@ import (
 
 type HandlerWithErrors func(*logr.Logger, micro.Request) error
 
+var registeredErrorsToStatusCode = make(map[error]int)
+
 type ClientError struct {
 	Code    int
 	Details string
@@ -38,6 +40,13 @@ func (c *ClientError) CodeString() string {
 func (c ClientError) As(target any) bool {
 	_, ok := target.(*ClientError)
 	return ok
+}
+
+// Map errors to status code
+func RegisterErrorsToStatusCodeMap(errs map[error]int) {
+	for k, v := range errs {
+		registeredErrorsToStatusCode[k] = v
+	}
 }
 
 func NewClientError(err error, code int) ClientError {
@@ -95,6 +104,11 @@ func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 	var ce ClientError
 	if errors.As(err, &ce) {
 		r.Error(ce.CodeString(), http.StatusText(ce.Code), ce.Body())
+		return
+	}
+
+	if statusCode, ok := registeredErrorsToStatusCode[err]; ok {
+		r.Error(strconv.Itoa(statusCode), http.StatusText(statusCode), []byte(err.Error()))
 		return
 	}
 
