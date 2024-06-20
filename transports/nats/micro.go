@@ -18,6 +18,7 @@ import (
 type HandlerWithErrors func(*logr.Logger, micro.Request) error
 
 type ClientError interface {
+	Error() string
 	Code() int
 	Body() []byte
 }
@@ -70,8 +71,6 @@ func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 	ce, ok := err.(ClientError)
 	if ok {
 		r.Error(fmt.Sprintf("%d", ce.Code()), http.StatusText(ce.Code()), ce.Body())
-		return
-
 	}
 
 	logger.Error(err)

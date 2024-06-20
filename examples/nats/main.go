@@ -45,7 +45,7 @@ func main() {
 	svc.AddEndpoint("specific", cwnats.ErrorHandler(logger, specificHandler), micro.WithEndpointSubject("prime.example.specific"))
 
 	// add a handler group
-	grp := svc.AddGroup("prime.example.math", micro.WithGroupQueueGroup("example"))
+	grp := svc.AddGroup("prime.services.example.*.math", micro.WithGroupQueueGroup("example"))
 	grp.AddEndpoint("add",
 		cwnats.ErrorHandler(logger, add),
 		micro.WithEndpointMetadata(map[string]string{
