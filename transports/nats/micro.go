@@ -1,16 +1,15 @@
 package nats
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	cwerrors "github.com/CoverWhale/coverwhale-go/errors"
 	"github.com/CoverWhale/logr"
 	"github.com/nats-io/nats.go/micro"
 	"github.com/segmentio/ksuid"
@@ -18,33 +17,9 @@ import (
 
 type HandlerWithErrors func(*logr.Logger, micro.Request) error
 
-type ClientError struct {
-	Code    int
-	Details string
-}
-
-func (c ClientError) Error() string {
-	return c.Details
-}
-
-func (c *ClientError) Body() []byte {
-	return []byte(fmt.Sprintf(`{"error": "%s"}`, c.Details))
-}
-
-func (c *ClientError) CodeString() string {
-	return strconv.Itoa(c.Code)
-}
-
-func (c ClientError) As(target any) bool {
-	_, ok := target.(*ClientError)
-	return ok
-}
-
-func NewClientError(err error, code int) ClientError {
-	return ClientError{
-		Code:    code,
-		Details: err.Error(),
-	}
+type ClientError interface {
+	Code() int
+	Body() []byte
 }
 
 func HandleNotify(s micro.Service, healthFuncs ...func(chan<- string, micro.Service)) error {
@@ -74,7 +49,7 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 		start := time.Now()
 		id, err := SubjectToRequestID(r.Subject())
 		if err != nil {
-			handleRequestError(logger, NewClientError(err, 400), r)
+			handleRequestError(logger, cwerrors.NewClientError(err, 400), r)
 			return
 		}
 		reqLogger := logger.WithContext(map[string]string{"request_id": id, "path": r.Subject()})
@@ -92,10 +67,11 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 }
 
 func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
-	var ce ClientError
-	if errors.As(err, &ce) {
-		r.Error(ce.CodeString(), http.StatusText(ce.Code), ce.Body())
+	ce, ok := err.(ClientError)
+	if ok {
+		r.Error(fmt.Sprintf("%d", ce.Code()), http.StatusText(ce.Code()), ce.Body())
 		return
+
 	}
 
 	logger.Error(err)

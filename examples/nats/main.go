@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 
+	cwerrors "github.com/CoverWhale/coverwhale-go/errors"
 	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
 	"github.com/CoverWhale/logr"
 	"github.com/invopop/jsonschema"
@@ -83,7 +84,7 @@ type MathResponse struct {
 func add(logger *logr.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
-		return cwnats.NewClientError(err, 400)
+		return cwerrors.NewClientError(err, 400)
 	}
 
 	resp := MathResponse{Result: mr.A + mr.B}
@@ -96,7 +97,7 @@ func add(logger *logr.Logger, r micro.Request) error {
 func subtract(logger *logr.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
-		return cwnats.NewClientError(err, 400)
+		return cwerrors.NewClientError(err, 400)
 	}
 
 	resp := MathResponse{Result: mr.A - mr.B}
