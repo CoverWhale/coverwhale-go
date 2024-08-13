@@ -114,8 +114,6 @@ func service(cmd *cobra.Command, args []string) error {
 		createFlags(dd),
 		createDocs(dd),
 		createNats(dd),
-		createClientCmd(dd),
-		createQueryCmd(dd),
 		createNatsCmdHelper(dd),
 		createFlyDevToml(dd),
 		createFlyToml(dd),
@@ -209,18 +207,6 @@ func createDocs(dd Delims) CreateFileFromTemplate {
 func createNatsCmdHelper(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
 		return cfg.Service.createOrPrintFile("cmd/nats.go", tpl.NatsHelper(), dd)
-	}
-}
-
-func createClientCmd(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("cmd/client.go", tpl.CmdClient(), dd)
-	}
-}
-
-func createQueryCmd(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("cmd/query.go", tpl.Query(), dd)
 	}
 }
 
