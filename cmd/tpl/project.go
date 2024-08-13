@@ -138,7 +138,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
     }
     
     if ce != "" {
-        return cwhttp.NewClientError(fmt.Errorf("uh oh spaghettios"), 400)
+        return cwerrors.NewClientError(fmt.Errorf("uh oh spaghettios"), 400)
     }
     
     {{ if .EnableTelemetry -}}

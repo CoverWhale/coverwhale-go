@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"time"
 
-	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
+	cwerrors "github.com/CoverWhale/coverwhale-go/errors"
 	"github.com/CoverWhale/logr"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
@@ -46,7 +46,7 @@ func SpecificHandler(logger *logr.Logger, r micro.Request) error {
 func Add(logger *logr.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
-		return cwnats.NewClientError(err, 400)
+		return cwerrors.NewClientError(err, 400)
 	}
 
 	resp := MathResponse{Result: mr.A + mr.B}
@@ -59,7 +59,7 @@ func Add(logger *logr.Logger, r micro.Request) error {
 func Subtract(logger *logr.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
-		return cwnats.NewClientError(err, 400)
+		return cwerrors.NewClientError(err, 400)
 	}
 
 	resp := MathResponse{Result: mr.A - mr.B}
