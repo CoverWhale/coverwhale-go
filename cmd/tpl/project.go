@@ -232,7 +232,7 @@ func baseSubject() string {
 		return "local.services.{{ .Name }}.*.math"
 	}
 
-	return "prime.service.{{ .Name }}.*.math"
+	return "prime.services.{{ .Name }}.*.math"
 }
 
 func start(cmd *cobra.Command, args []string ) error {
