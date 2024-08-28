@@ -108,15 +108,11 @@ func service(cmd *cobra.Command, args []string) error {
 		createDockerfile(dd),
 		createGoReleaser(Delims{First: "[%", Second: "%]"}),
 		createTestWorkflow(Delims{First: "[%", Second: "%]"}),
-		createReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
-		createTaggedReleaseWorkflow(Delims{First: "[%", Second: "%]"}),
 		createGitignore(dd),
 		createFlags(dd),
 		createDocs(dd),
 		createNats(dd),
 		createNatsCmdHelper(dd),
-		createFlyDevToml(dd),
-		createFlyToml(dd),
 	}
 
 	if cfg.Service.EnableEdgeDB {
