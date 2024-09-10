@@ -207,7 +207,7 @@ jobs:
 }
 
 func Gitignore() []byte {
-	return []byte(`{{ .Name }}ctl*
+	return []byte(`{{ .Name }}ctl
 cwgotctl*
 dist/
 output/
