@@ -88,7 +88,7 @@ ci-test: ci-lint ci-unit ci-cover
 ci-build:
 {{"\t"}}docker build --build-arg VERSION=${VERSION} -t ${IMAGE} .
 
-clean: ## Remove previous build
+clean: ## Reset everything
 {{"\t"}}docker run --rm -v ./output:/out alpine rm -rf /out/*
 {{"\t"}}git clean -fd
 {{"\t"}}git clean -fx
@@ -106,7 +106,8 @@ ENV IMAGE_TAG=dev
 RUN apk update && apk upgrade && apk add --no-cache ca-certificates git
 RUN update-ca-certificates
 ADD . /app/
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags="-s -w -X '{{ .Module }}/cmd.Version=$(printf $(git describe --tags | cut -d '-' -f 1)-$(git rev-parse --short HEAD))'" -installsuffix cgo -o {{ .Name }}ctl .
+ARG VERSION
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags="-s -w -X '{{ .Module }}/cmd.Version=${VERSION}'" -installsuffix cgo -o {{ .Name }}ctl .
 
 FROM builder AS tester
 RUN go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
@@ -116,7 +117,7 @@ FROM scratch
 COPY --from=builder /app/{{ .Name }}ctl .
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENTRYPOINT ["./{{ .Name }}ctl"]    
+ENTRYPOINT ["./{{ .Name }}ctl"]
 `)
 }
 
