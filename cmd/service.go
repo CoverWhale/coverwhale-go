@@ -109,6 +109,8 @@ func service(cmd *cobra.Command, args []string) error {
 		createGoReleaser(Delims{First: "[%", Second: "%]"}),
 		createTestWorkflow(Delims{First: "[%", Second: "%]"}),
 		createGitignore(dd),
+		createDockerignore(dd),
+		createReleaseWorkflow(dd),
 		createFlags(dd),
 		createDocs(dd),
 		createNats(dd),
@@ -238,15 +240,15 @@ func createReleaseWorkflow(dd Delims) CreateFileFromTemplate {
 	}
 }
 
-func createTaggedReleaseWorkflow(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile(".github/workflows/tagged_release.yaml", tpl.TaggedReleaseWorkflow(), dd)
-	}
-}
-
 func createGitignore(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
 		return cfg.Service.createOrPrintFile(".gitignore", tpl.Gitignore(), dd)
+	}
+}
+
+func createDockerignore(dd Delims) CreateFileFromTemplate {
+	return func(s *Service) error {
+		return cfg.Service.createOrPrintFile(".dockerignore", tpl.Dockerignore(), dd)
 	}
 }
 
@@ -312,18 +314,6 @@ func createEdgedbToml(dd Delims) CreateFileFromTemplate {
 func createEdgedbDefault(dd Delims) CreateFileFromTemplate {
 	return func(s *Service) error {
 		return cfg.Service.createOrPrintFile("dbschema/default.esdl", tpl.DefaultEsdl(), dd)
-	}
-}
-
-func createFlyDevToml(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("fly.toml", tpl.FlyDev(), dd)
-	}
-}
-
-func createFlyToml(dd Delims) CreateFileFromTemplate {
-	return func(s *Service) error {
-		return cfg.Service.createOrPrintFile("fly.prod.toml", tpl.FlyProd(), dd)
 	}
 }
 

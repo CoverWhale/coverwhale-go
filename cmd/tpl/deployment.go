@@ -19,10 +19,16 @@ func Makefile() []byte {
 PKG := "{{ .Module }}"
 PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
-VERSION := $(shell if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git describe --exact-match --tags HEAD 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)"; else echo "dev"; fi)
+LOCAL_VERSION := $(shell if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git describe --exact-match --tags HEAD 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)"; else echo "dev"; fi)
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 GOPRIVATE=github.com/CoverWhale
+
+# Version and image repo are overriden by the ci pipeline
+VERSION=x.x.x
+IMAGE_REPO=local/${shell basename ${PWD}}
+IMAGE=${IMAGE_REPO}:${VERSION}
+TEST_IMAGE:=${IMAGE_REPO}-test:${VERSION}
 
 .PHONY: all build docker deps clean test coverage lint docker-local edgedb k8s-up k8s-down docker-delete docs update-local deploy-local
 
@@ -61,7 +67,29 @@ docs: ## Builds the cli documentation
 schema: ## Generates boilerplate code from the graph/schema.graphqls file
 {{"\t"}}go run github.com/99designs/gqlgen update
 
+build-tester:
+{{"\t"}}docker build --target tester --build-arg VERSION=${VERSION} -t ${TEST_IMAGE} .
+
+ci-lint: build-tester
+{{"\t"}}docker run --rm ${TEST_IMAGE} go vet
+{{"\t"}}docker run --rm ${TEST_IMAGE} gocyclo -over 16 -ignore "generated" ./
+
+ci-unit: build-tester
+d{{"\t"}}docker run --rm ${TEST_IMAGE} go test -v ./...
+
+ci-cover: build-tester
+{{"\t"}}mkdir -p ./output
+{{"\t"}}docker run --rm -v ./output:/out ${TEST_IMAGE} go test -cover ./...
+{{"\t"}}docker run --rm -v ./output:/out ${TEST_IMAGE} go test ./... -coverprofile=/out/cover.out
+{{"\t"}}docker run --rm -v ./output:/out ${TEST_IMAGE} go tool cover -html=/out/cover.out -o /out/coverage.html
+
+ci-test: ci-lint ci-unit ci-cover
+
+ci-build:
+{{"\t"}}docker build --build-arg VERSION=${VERSION} -t ${IMAGE} .
+
 clean: ## Remove previous build
+{{"\t"}}docker run --rm -v ./output:/out alpine rm -rf /out/*
 {{"\t"}}git clean -fd
 {{"\t"}}git clean -fx
 {{"\t"}}git reset --hard
@@ -80,6 +108,8 @@ RUN update-ca-certificates
 ADD . /app/
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags="-s -w -X '{{ .Module }}/cmd.Version=$(printf $(git describe --tags | cut -d '-' -f 1)-$(git rev-parse --short HEAD))'" -installsuffix cgo -o {{ .Name }}ctl .
 
+FROM builder AS tester
+RUN go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
 FROM scratch
 
@@ -150,60 +180,29 @@ jobs:
 }
 
 func ReleaseWorkflow() []byte {
-	return []byte(`name: deploy dev
+	return []byte(`name: Build application
+name: Build application
+
 on:
   push:
     branches:
       - main
-permissions:
-  id-token: write
-  contents: read
-jobs:
-  test:
-    uses: ./.github/workflows/test.yaml
-  release:
-    permissions:
-      id-token: write
-      contents: write
-    runs-on: ubuntu-latest
-    needs: [test]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: fly deploy
-        uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --config fly.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_DEV_API_TOKEN }}
-`)
-}
+  pull_request:
+    branches:
+      - main
 
-func TaggedReleaseWorkflow() []byte {
-	return []byte(`name: deploy prod
-on:
-  push:
-    tags:
-      - '*'
 permissions:
-  id-token: write
-  contents: read
+  id-token: write # This is required for AWS authentication
+  contents: write # This is required for actions/checkout
+  issues: write # to be able to comment on released issues
+  pull-requests: write # to be able to comment on released pull requests
+
 jobs:
-  test:
-    uses: ./.github/workflows/test.yaml
-  release:
-    permissions:
-      id-token: write
-      contents: write
-    runs-on: ubuntu-latest
-    needs: [test]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: fly deploy
-        uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --config fly.prod.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  build:
+    uses: CoverWhale/cw-internal-developer-platform/.github/workflows/build.yml@v1.4.0
+    with:
+      system: prime
+      application: prime-{{ .Name }}
 `)
 }
 
@@ -211,51 +210,15 @@ func Gitignore() []byte {
 	return []byte(`{{ .Name }}ctl*
 cwgotctl*
 dist/
+output/
 `)
 }
 
-func FlyDev() []byte {
-	return []byte(`app = 'cw-dev-prime-{{ .Name }}'
-primary_region = 'iad'
-
-[processes]
-  app = "service start"
-
-[env]
-  {{ .Name | ToUpper }}_NATS_URLS = 'tls://connect.ngs.global'
-
-[http_service]
-  auto_stop_machines = false
-  auto_start_machines = false
-  min_machines_running = 1
-  processes = ["app"]
-
-[[vm]]
-  size = 'shared-cpu-1x'
-  memory_mb = 256
-  cpus = 1
-`)
-}
-
-func FlyProd() []byte {
-	return []byte(`app = 'cw-prime-{{ .Name }}'
-primary_region = 'iad'
-
-[env]
-  {{ .Name | ToUpper }}_NATS_URLS = 'tls://connect.ngs.global'
-
-[processes]
-  app = "service start"
-
-[http_service]
-  auto_stop_machines = false
-  auto_start_machines = false
-  min_machines_running = 0
-  processes = ["app"]
-
-[[vm]]
-  size = 'shared-cpu-1x'
-  memory_mb = 256
-  cpus = 1
+func Dockerignore() []byte {
+	return []byte(`Makefile
+Dockerfile
+.git 
+.gitignore
+.README.md
 `)
 }
