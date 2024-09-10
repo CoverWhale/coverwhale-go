@@ -181,7 +181,6 @@ jobs:
 
 func ReleaseWorkflow() []byte {
 	return []byte(`name: Build application
-name: Build application
 
 on:
   push:
