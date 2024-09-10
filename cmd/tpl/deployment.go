@@ -75,7 +75,7 @@ ci-lint: build-tester
 {{"\t"}}docker run --rm ${TEST_IMAGE} gocyclo -over 16 -ignore "generated" ./
 
 ci-unit: build-tester
-d{{"\t"}}docker run --rm ${TEST_IMAGE} go test -v ./...
+{{"\t"}}docker run --rm ${TEST_IMAGE} go test -v ./...
 
 ci-cover: build-tester
 {{"\t"}}mkdir -p ./output
