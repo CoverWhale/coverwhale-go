@@ -21,6 +21,7 @@ type ClientError interface {
 	Error() string
 	Code() int
 	Body() []byte
+	Internal() string
 }
 
 func HandleNotify(s micro.Service, healthFuncs ...func(chan<- string, micro.Service)) error {
@@ -70,6 +71,7 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 	ce, ok := err.(ClientError)
 	if ok {
+		logger.Error(ce.Internal())
 		r.Error(fmt.Sprintf("%d", ce.Code()), http.StatusText(ce.Code()), ce.Body())
 	}
 
