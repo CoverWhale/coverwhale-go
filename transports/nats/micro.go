@@ -3,6 +3,7 @@ package nats
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	cwerrors "github.com/CoverWhale/coverwhale-go/errors"
 	"github.com/CoverWhale/logr"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 	"github.com/segmentio/ksuid"
 )
@@ -59,6 +61,10 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 			reqLogger.Infof("duration %dms", time.Since(start).Milliseconds())
 		}()
 
+		if err := buildQueryHeaders(r); err != nil {
+			handleRequestError(reqLogger, err, r)
+		}
+
 		err = h(reqLogger, r)
 		if err == nil {
 			return
@@ -66,6 +72,28 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 
 		handleRequestError(reqLogger, err, r)
 	}
+}
+
+// Create CW specific headers from the NATS bridge plugin headers
+func buildQueryHeaders(r micro.Request) error {
+	headers := nats.Header(r.Headers())
+	query := headers.Get("X-NatsBridge-UrlQuery")
+	parsed, err := url.ParseQuery(query)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range parsed {
+		key := fmt.Sprintf("X-CW-%s", k)
+		headers[key] = v
+	}
+
+	return nil
+}
+
+func GetQueryHeaders(headers micro.Headers, key string) []string {
+	k := fmt.Sprintf("X-CW-%s", key)
+	return headers.Values(k)
 }
 
 func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
