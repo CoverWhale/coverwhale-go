@@ -22,8 +22,7 @@ import (
 	"encoding/json"
 	"time"
 
-	cwerrors "github.com/CoverWhale/coverwhale-go/errors"
-	"github.com/CoverWhale/logr"
+	cwerrors "github.com/SencilloDev/sencillo-go/errors"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 )
@@ -37,13 +36,13 @@ type MathResponse struct {
 	Result int {{ $tick }}json:"result"{{ $tick }}
 }
 
-func SpecificHandler(logger *logr.Logger, r micro.Request) error {
+func SpecificHandler(logger *slog.Logger, r micro.Request) error {
 	r.Respond([]byte("in the specific handler"))
 
 	return nil
 }
 
-func Add(logger *logr.Logger, r micro.Request) error {
+func Add(logger *slog.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
 		return cwerrors.NewClientError(err, 400)
@@ -56,7 +55,7 @@ func Add(logger *logr.Logger, r micro.Request) error {
 	return nil
 }
 
-func Subtract(logger *logr.Logger, r micro.Request) error {
+func Subtract(logger *slog.Logger, r micro.Request) error {
 	var mr MathRequest
 	if err := json.Unmarshal(r.Data(), &mr); err != nil {
 		return cwerrors.NewClientError(err, 400)
@@ -68,15 +67,17 @@ func Subtract(logger *logr.Logger, r micro.Request) error {
 	return nil
 }
 
-func WatchForConfig(logger *logr.Logger, js nats.JetStreamContext) {
+func WatchForConfig(logger *slog.LevelVar, js nats.JetStreamContext) {
 	kv, err := js.KeyValue("configs")
 	if err != nil {
-		logr.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	w, err := kv.Watch("{{ .Name }}.log_level")
 	if err != nil {
-		logr.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	for val := range w.Updates() {
@@ -86,18 +87,18 @@ func WatchForConfig(logger *logr.Logger, js nats.JetStreamContext) {
 
 		level := string(val.Value())
 		if level == "info" {
-			logger.Level = logr.InfoLevel
+			slog.Set(slog.LevelInfo)
 		}
 
 		if level == "error" {
-			logger.Level = logr.ErrorLevel
+			slog.Set(slog.LevelError)
 		}
 
 		if level == "debug" {
-			logger.Level = logr.DebugLevel
+			slog.Set(slog.LevelDebug)
 		}
 
-		logger.Infof("set log level to %s", level)
+		slog.Info(fmt.Sprintf("set log level to %s", level))
 	}
 
 	time.Sleep(5 * time.Second)

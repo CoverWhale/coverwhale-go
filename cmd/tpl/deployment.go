@@ -22,7 +22,7 @@ GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
 LOCAL_VERSION := $(shell if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git describe --exact-match --tags HEAD 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)"; else echo "dev"; fi)
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
-GOPRIVATE=github.com/CoverWhale
+GOPRIVATE=github.com/SencilloDev
 
 # Version and image repo are overriden by the ci pipeline
 VERSION=x.x.x

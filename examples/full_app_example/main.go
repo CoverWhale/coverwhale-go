@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ func main() {
 	cwServer := cwhttp.NewHTTPServer(
 		cwhttp.SetServerPort(9090),
 	).RegisterSubRouter("/api/v1", h.buildRoutes(l))
-	// CoverWhale-go accepts chi middleware also
+	// Sencillo-go accepts chi middleware also
 	// .RegisterSubRouter("/api/v1", h.buildRoutes(l), middleware.Logger, middleware.Throttle(1))
 
 	h.Server = cwServer

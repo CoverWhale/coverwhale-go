@@ -25,7 +25,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "cwgoctl",
+	Use:   "sgoctl",
 	Short: "Create an opinionated application",
 }
 
@@ -37,6 +37,7 @@ var cfg Config
 type Config struct {
 	Debug   bool    `mapstructure:"debug"`
 	Service Service `mapstructure:"service"`
+	Level   slog.LevelVar
 }
 type Service struct {
 	Name              string `mapstructure:"name"`
@@ -64,7 +65,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cwgo.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sgo.yaml)")
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Print output instead of creating files")
 	viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
@@ -78,10 +79,10 @@ func initConfig() {
 		cobra.CheckErr(err)
 
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".cwgo")
+		viper.SetConfigName(".sgo")
 	}
 
-	viper.SetEnvPrefix("cwgo")
+	viper.SetEnvPrefix("sgo")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(replacer)
 

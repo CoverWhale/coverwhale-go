@@ -1,4 +1,4 @@
-# Copyright 2023 Cover Whale Insurance Solutions Inc.
+# Copyright 2025 Sencillo
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PROJECT_NAME := "cwgoctl"
-PKG := "github.com/CoverWhale/coverwhale-go"
+PROJECT_NAME := "sgoctl"
+PKG := "github.com/SencilloDev/sencillo-go"
 PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
 VERSION := $$(git describe HEAD)
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
-cwgoctl: ## Builds the binary on the current platform
+sgoctl: ## Builds the binary on the current platform
 	go build -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)
 
 docs: cwgoctl ## Builds the cli documentation

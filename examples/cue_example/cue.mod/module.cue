@@ -1,1 +1,1 @@
-module: "github.com/CoverWhale/coverwhale-go/examples/cue_example"
+module: "github.com/SencilloDev/sencillo-go/examples/cue_example"

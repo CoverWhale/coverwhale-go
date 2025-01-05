@@ -24,7 +24,7 @@ import (
 // subcommand to create new resources
 var newCmd = &cobra.Command{
 	Use:   "new",
-	Short: "Creates a new type of Cover Whale app",
+	Short: "Creates a new Sencillo app",
 }
 
 func init() {

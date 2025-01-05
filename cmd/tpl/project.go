@@ -78,15 +78,14 @@ import (
 
     "github.com/99designs/gqlgen/graphql/handler"
     "github.com/99designs/gqlgen/graphql/playground"
-    "github.com/CoverWhale/logr"
-    cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+    cwhttp "github.com/SencilloDev/sencillo-go/transports/http"
     {{ if .EnableTelemetry -}}
-    "github.com/CoverWhale/coverwhale-go/metrics"
+    "github.com/SencilloDev/sencillo-go/metrics"
     "go.opentelemetry.io/otel/attribute"
     {{- end }}
 )
 
-func GetRoutes(l *logr.Logger) []cwhttp.Route {
+func GetRoutes(l *slog.Logger) []cwhttp.Route {
     return []cwhttp.Route{
         {
             Method: http.MethodGet,
@@ -170,7 +169,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
     return nil
 }
 
-func ExampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
+func ExampleMiddleware(l *slog.Logger) func(h http.Handler) http.Handler {
     return func(h http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             if r.Header.Get("Authorization") == "" {
@@ -199,7 +198,6 @@ import (
     {{ end }}
     "fmt"
     "{{ .Module }}/service"
-    "github.com/CoverWhale/logr"
     "github.com/invopop/jsonschema"
     "github.com/nats-io/nats.go/micro"
     "github.com/nats-io/nats.go"
@@ -236,7 +234,11 @@ func baseSubject() string {
 }
 
 func start(cmd *cobra.Command, args []string ) error {
-    logger := logr.NewLogger()
+    level := new(slog.LevelVar)
+    level.Set(slog.LevelInfo)
+    logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	Level: level,
+    }))
     {{ if .EnableHTTP }}
     ctx := context.Background()
 
@@ -289,7 +291,8 @@ func start(cmd *cobra.Command, args []string ) error {
     
     svc, err := micro.AddService(nc, config)
     if err != nil {
-    	logr.Fatal(err)
+	slog.Error(err.Error())
+	os.Exit(1)
     }
     
     // add a singular handler as an endpoint
@@ -320,7 +323,7 @@ func start(cmd *cobra.Command, args []string ) error {
     )
     
     // uncomment to enable config watching
-    //go service.WatchForConfig(logger, js)
+    //go service.WatchForConfig(level, js)
     {{ if not .EnableHTTP }}
     logger.Infof("service %s %s started", svc.Info().Name, svc.Info().ID)
 
@@ -353,7 +356,8 @@ func schemaString(s any) string {
     schema := jsonschema.Reflect(s)
     data, err := schema.MarshalJSON()
     if err != nil {
-    	logr.Fatal(err)
+	slog.Error(err.Error())
+	os.Exit(1)
     }
     
     return string(data)
@@ -380,7 +384,6 @@ import (
     "os"
     "strings"
     
-    "github.com/CoverWhale/logr"
     "github.com/spf13/cobra"
     "github.com/spf13/viper"
 )
@@ -431,9 +434,9 @@ func initConfig() {
     viper.SetEnvKeyReplacer(replacer)
     
     // If a config file is found, read it in.
-    logger := logr.NewLogger()
+    logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
     if err := viper.ReadInConfig(); err == nil {
-        logger.Debugf("using config %s", viper.ConfigFileUsed())
+        logger.Debug(fmt.Sprintf("using config %s", viper.ConfigFileUsed()))
     }
     
     if err := viper.Unmarshal(&cfg); err != nil {
@@ -522,7 +525,6 @@ func NatsHelper() []byte {
 import (
 	"os"
 
-        "github.com/CoverWhale/logr"
         "github.com/nats-io/jsm.go/natscontext"
         "github.com/nats-io/nats.go"
         "github.com/spf13/viper"
@@ -534,7 +536,7 @@ func newNatsConnection(name string) (*nats.Conn, error) {
         _, ok := os.LookupEnv("USER")
 
         if viper.GetString("credentials_file") == "" && viper.GetString("nats_jwt") == "" && ok {
-                logr.Debug("using NATS context")
+                slog.Debug("using NATS context")
                 return natscontext.Connect("", opts...)
         }
 

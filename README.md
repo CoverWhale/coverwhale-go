@@ -17,7 +17,7 @@ To use the targets in the Makefile you will need:
 
 To use the utility simply follow these steps:
 
-1. `go mod init github.com/CoverWhale/myapp`
+1. `go mod init github.com/SencilloDev/myapp`
 
 2. Run `cwgoctl` with your options.  For example: `cwgoctl new server --name myapp`
     > Cli documentation is [here](docs/cwgo.md)
@@ -45,7 +45,7 @@ The utility has various flags to enable features that may be useful for the new 
 
 ### EdgeDB instructions
 
-By default, your new CoverWhale app comes with edgedb enabled. Files related to edgedb can be found under the `dbschema` folder of your new app. To access your edgedb instance, follow these steps:
+By default, your new Sencillo app comes with edgedb enabled. Files related to edgedb can be found under the `dbschema` folder of your new app. To access your edgedb instance, follow these steps:
 
 1. If you haven't already, run `make tidy` and `make deploy-local` to spin up a local kubernetes deployment
 	> Steps 3 & 4 from above. You will need to have docker running in order for the deploy to work
@@ -74,7 +74,7 @@ import (
 	"log"
 	"net/http"
 
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	cwhttp "github.com/SencilloDev/sencillo-go/transports/http"
 )
 
 func testing(w http.ResponseWriter, r *http.Request) {
@@ -106,16 +106,16 @@ will automatically marshal the error value and return it to the caller. For exam
 
 ```go
 import (
-	"github.com/CoverWhale/logr"	
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	"log/slog"
+	sdhttp "github.com/SencilloDev/sencillo-go/transports/http"
 )
 
-var logger *logr.Logger
+var logger *slog.Logger
 
 func myHandler(w http.ResponseWriter, r *http.Request) error {
 
 	if r.Header.Get("Authorization") == "" {
-		return cwhttp.NewClientError(fmt.Errorf("unauthorized"), http.StatusUnauthorized)
+		return sdhttp.NewClientError(fmt.Errorf("unauthorized"), http.StatusUnauthorized)
 	}
 
 	.../
@@ -142,7 +142,7 @@ passing a data source:
 
 ```go
 import (
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
+	cwhttp "github.com/SencilloDev/sencillo-go/transports/http"
 )
 
 var db *Database

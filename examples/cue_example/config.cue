@@ -1,4 +1,4 @@
-import "github.com/CoverWhale/coverwhale-go/examples/cue_example/thing"
+import "github.com/SencilloDev/sencillo-go/examples/cue_example/thing"
 
 #Data: {
     SomeValue: "myvalue"
