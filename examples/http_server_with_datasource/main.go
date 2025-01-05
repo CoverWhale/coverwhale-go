@@ -16,13 +16,14 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-	"github.com/CoverWhale/logr"
+	sdhttp "github.com/SencilloDev/sencillo-go/transports/http"
 )
 
 type DataStore interface {
@@ -47,8 +48,8 @@ func (i InMem) GetData(id string) string {
 	return i.Data[id]
 }
 
-func (a *App) getSampleRoutes() []cwhttp.Route {
-	return []cwhttp.Route{
+func (a *App) getSampleRoutes() []sdhttp.Route {
+	return []sdhttp.Route{
 		{
 			Method:  http.MethodGet,
 			Path:    "/testing",
@@ -57,7 +58,7 @@ func (a *App) getSampleRoutes() []cwhttp.Route {
 		{
 			Method:  http.MethodGet,
 			Path:    "/testingCustom",
-			Handler: cwhttp.HandleWithContext(customHandlerType, a.DS),
+			Handler: sdhttp.HandleWithContext(customHandlerType, a.DS),
 		},
 	}
 }
@@ -79,7 +80,7 @@ func customHandlerType(w http.ResponseWriter, r *http.Request, ds DataStore) {
 	w.Write([]byte(data))
 }
 
-func exampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
+func exampleMiddleware(l *slog.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Authorization") == "" {
@@ -98,8 +99,8 @@ func exampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
 
 func main() {
 	ctx := context.Background()
-	s := cwhttp.NewHTTPServer(
-		cwhttp.SetServerPort(9090),
+	s := sdhttp.NewHTTPServer(
+		sdhttp.SetServerPort(9090),
 	)
 	ds := InMem{
 		Data: map[string]string{
@@ -119,7 +120,7 @@ func main() {
 	go func() {
 		serverErr := <-errChan
 		if serverErr != nil {
-			s.Logger.Errorf("error starting server: %v", serverErr)
+			s.Logger.Error(fmt.Sprintf("error starting server: %v", serverErr))
 			s.ShutdownServer(ctx)
 		}
 	}()
@@ -128,6 +129,6 @@ func main() {
 	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-sigTerm
-	s.Logger.Infof("received signal: %s", sig)
+	s.Logger.Info(fmt.Sprintf("received signal: %s", sig))
 	s.ShutdownServer(ctx)
 }

@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@ package http
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 	"time"
-
-	"github.com/CoverWhale/logr"
 )
 
 var (
@@ -119,7 +119,7 @@ func TestErrHandlerServeHTTP(t *testing.T) {
 					return NewClientError(ErrTestingError, 400)
 				},
 
-				Logger: logr.NewLogger(),
+				Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 			err:    NewClientError(ErrTestingError, 400),
 			status: 400,
@@ -129,7 +129,7 @@ func TestErrHandlerServeHTTP(t *testing.T) {
 				Handler: func(w http.ResponseWriter, r *http.Request) error {
 					return ErrInternalError
 				},
-				Logger: logr.NewLogger(),
+				Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 			err:    ErrInternalError,
 			status: 500,
@@ -166,8 +166,7 @@ func TestJsonHandlerServeHTTP(t *testing.T) {
 				Handler: JsonHandler(func(w http.ResponseWriter, r *http.Request) error {
 					return NewClientError(ErrTestingError, 400)
 				}),
-
-				Logger: logr.NewLogger(),
+				Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 			err:         NewClientError(ErrTestingError, 400),
 			status:      400,
@@ -178,7 +177,7 @@ func TestJsonHandlerServeHTTP(t *testing.T) {
 				Handler: JsonHandler(func(w http.ResponseWriter, r *http.Request) error {
 					return ErrInternalError
 				}),
-				Logger: logr.NewLogger(),
+				Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			},
 			err:         ErrInternalError,
 			status:      500,

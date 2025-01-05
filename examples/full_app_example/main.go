@@ -16,18 +16,19 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-	"github.com/CoverWhale/logr"
+	cwhttp "github.com/SencilloDev/sencillo-go/transports/http"
 )
 
 func main() {
 	ctx := context.Background()
 	ds := NewInMemoryStore()
-	l := logr.NewLogger()
+	l := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	h := Application{
 		ProductManager: ds,
@@ -50,7 +51,7 @@ func main() {
 	go func() {
 		serverErr := <-errChan
 		if serverErr != nil {
-			cwServer.Logger.Errorf("error starting server: %v", serverErr)
+			cwServer.Logger.Error(fmt.Sprintf("error starting server: %v", serverErr))
 			cwServer.ShutdownServer(ctx)
 		}
 	}()
@@ -59,7 +60,7 @@ func main() {
 	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-sigTerm
-	cwServer.Logger.Infof("received signal: %s", sig)
+	cwServer.Logger.Info(fmt.Sprintf("received signal: %s", sig))
 	cwServer.ShutdownServer(ctx)
 
 }

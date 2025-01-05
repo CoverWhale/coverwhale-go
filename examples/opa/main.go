@@ -18,12 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
-	"github.com/CoverWhale/coverwhale-go/opa"
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-	"github.com/CoverWhale/coverwhale-go/transports/http/middleware"
-	"github.com/CoverWhale/logr"
+	"github.com/SencilloDev/sencillo-go/opa"
+	sdhttp "github.com/SencilloDev/sencillo-go/transports/http"
+	"github.com/SencilloDev/sencillo-go/transports/http/middleware"
 )
 
 type Request struct {
@@ -39,8 +39,8 @@ type Vehicle struct {
 	Amount   int    `json:"amount"`
 }
 
-func getRoutes(l *logr.Logger) []cwhttp.Route {
-	return []cwhttp.Route{
+func getRoutes(l *slog.Logger) []sdhttp.Route {
+	return []sdhttp.Route{
 		{
 			Method:  http.MethodPost,
 			Path:    "/test",
@@ -63,7 +63,7 @@ func test(w http.ResponseWriter, r *http.Request) {
 	var req Request
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logr.Errorf("error decoding app data: %v", err)
+		slog.Error(fmt.Sprintf("error decoding app data: %v", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -152,8 +152,8 @@ func opaValidateDecision(data []byte) (opa.OPARequest, error) {
 func main() {
 	ctx := context.Background()
 
-	s := cwhttp.NewHTTPServer(
-		cwhttp.SetServerPort(7070),
+	s := sdhttp.NewHTTPServer(
+		sdhttp.SetServerPort(7070),
 	)
 
 	s.RegisterSubRouter("/api/v1", getRoutes(s.Logger), middleware.RequestID)

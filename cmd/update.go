@@ -1,4 +1,4 @@
-// Copyright 2024 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

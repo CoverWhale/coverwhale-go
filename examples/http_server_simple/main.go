@@ -17,19 +17,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/CoverWhale/coverwhale-go/metrics"
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-	"github.com/CoverWhale/logr"
+	"github.com/SencilloDev/sencillo-go/metrics"
+	cwhttp "github.com/SencilloDev/sencillo-go/transports/http"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 )
 
-func getRoutes(l *logr.Logger) []cwhttp.Route {
+func getRoutes(l *slog.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
 			Method: http.MethodGet,
@@ -55,7 +55,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	ie := r.Header.Get("internal-error")
 	ce := r.Header.Get("client-error")
 
-	logr.Info(id)
+	slog.Info(id)
 
 	if ie != "" {
 		return fmt.Errorf("this is an internal error")
@@ -90,7 +90,7 @@ func testing(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func exampleMiddleware(l *logr.Logger) func(h http.Handler) http.Handler {
+func exampleMiddleware(l *slog.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Authorization") == "" {
@@ -112,13 +112,15 @@ func main() {
 	// create new metrics exporter
 	exp, err := metrics.NewOTLPExporter(ctx, "localhost:4318", otlptracehttp.WithInsecure())
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	// create global tracer provider
 	tp, err := metrics.RegisterGlobalOTLPProvider(exp, "simple-http-example", "v1")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	s := cwhttp.NewHTTPServer(

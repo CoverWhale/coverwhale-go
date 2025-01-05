@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/CoverWhale/coverwhale-go/config"
+	"github.com/SencilloDev/sencillo-go/config"
 )
 
 //go:embed schema.cue

@@ -18,11 +18,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 
-	cwhttp "github.com/CoverWhale/coverwhale-go/transports/http"
-	"github.com/CoverWhale/logr"
-	"github.com/newrelic/go-agent/v3/newrelic"
+	cwhttp "github.com/SencilloDev/sencillo-go/transports/http"
 )
 
 type clientHandlerFunc func(http.ResponseWriter, *http.Request, ClientManager) error
@@ -61,16 +60,7 @@ func (a *Application) createProduct(w http.ResponseWriter, r *http.Request) erro
 
 	new := NewProduct().SetName(p.Name).SetDescription(p.Description).SetPrice(p.Price)
 
-	txn := newrelic.FromContext(r.Context())
-	s := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    "in-memory",
-		Collection: "products",
-		Operation:  "create",
-	}
-
 	new.Save(a.ProductManager)
-	s.End()
 
 	if err := json.NewEncoder(w).Encode(new); err != nil {
 		return err
@@ -81,19 +71,8 @@ func (a *Application) createProduct(w http.ResponseWriter, r *http.Request) erro
 
 func getProductByID(w http.ResponseWriter, r *http.Request, pm ProductManager) {
 	id := r.PathValue("id")
-	txn := newrelic.FromContext(r.Context())
-	s := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    "in-memory",
-		Collection: "products",
-		Operation:  "get by id",
-		QueryParameters: map[string]interface{}{
-			"id": id,
-		},
-	}
 
 	p := GetProduct(id, pm)
-	s.End()
 
 	if err := json.NewEncoder(w).Encode(p); err != nil {
 		log.Println(err)
@@ -101,15 +80,7 @@ func getProductByID(w http.ResponseWriter, r *http.Request, pm ProductManager) {
 }
 
 func getProducts(w http.ResponseWriter, r *http.Request, pm ProductManager) {
-	txn := newrelic.FromContext(r.Context())
-	s := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    "in-memory",
-		Collection: "products",
-		Operation:  "get all",
-	}
 	p := GetAllProducts(pm)
-	s.End()
 
 	if err := json.NewEncoder(w).Encode(p); err != nil {
 		log.Println(err)
@@ -128,17 +99,9 @@ func createClient(w http.ResponseWriter, r *http.Request, cm ClientManager) erro
 		return cwhttp.NewClientError(err, http.StatusBadRequest)
 	}
 
-	txn := newrelic.FromContext(r.Context())
-	s := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    "in-memory",
-		Collection: "clients",
-		Operation:  "create",
-	}
 	if err := a.Save(cm); err != nil {
 		return err
 	}
-	s.End()
 
 	if err := json.NewEncoder(w).Encode(a); err != nil {
 		return err
@@ -148,15 +111,7 @@ func createClient(w http.ResponseWriter, r *http.Request, cm ClientManager) erro
 }
 
 func getClients(w http.ResponseWriter, r *http.Request, cm ClientManager) error {
-	txn := newrelic.FromContext(r.Context())
-	s := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    "in-memory",
-		Collection: "clients",
-		Operation:  "get all",
-	}
 	clients := GetAllClients(cm)
-	s.End()
 
 	if err := json.NewEncoder(w).Encode(clients); err != nil {
 		return err
@@ -167,18 +122,7 @@ func getClients(w http.ResponseWriter, r *http.Request, cm ClientManager) error 
 
 func getClientByID(w http.ResponseWriter, r *http.Request, cm ClientManager) error {
 	id := r.PathValue("id")
-	txn := newrelic.FromContext(r.Context())
-	s := newrelic.DatastoreSegment{
-		StartTime:  newrelic.StartSegmentNow(txn),
-		Product:    "in-memory",
-		Collection: "clients",
-		Operation:  "get by ID",
-		QueryParameters: map[string]interface{}{
-			"id": id,
-		},
-	}
 	client := GetClient(id, cm)
-	s.End()
 
 	if err := json.NewEncoder(w).Encode(client); err != nil {
 		return err
@@ -187,7 +131,7 @@ func getClientByID(w http.ResponseWriter, r *http.Request, cm ClientManager) err
 	return nil
 }
 
-func (a *Application) buildRoutes(l *logr.Logger) []cwhttp.Route {
+func (a *Application) buildRoutes(l *slog.Logger) []cwhttp.Route {
 	return []cwhttp.Route{
 		{
 			Method:  http.MethodGet,

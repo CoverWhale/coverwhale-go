@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/executor"
-	"github.com/CoverWhale/logr"
 	"github.com/nats-io/nats.go"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -113,11 +113,11 @@ func (n *NATSClient) Resolve(errChan chan<- error) {
 
 func (n *NATSClient) resolve() {
 	subject := fmt.Sprintf("%s.graphql", strings.TrimSuffix(n.Subject, ".>"))
-	logr.Infof("listening for requests on %s", subject)
+	slog.Info(fmt.Sprintf("listening for requests on %s", subject))
 
 	_, err := n.Conn.Subscribe(subject, n.HandleAndLogRequests)
 	if err != nil {
-		logr.Errorf("Error in subscribing: %s", err)
+		slog.Error(fmt.Sprintf("Error in subscribing: %s", err))
 	}
 }
 
@@ -133,7 +133,7 @@ func (n *NATSClient) HandleAndLogRequests(m *nats.Msg) {
 		}
 	}()
 
-	logr.Debugf("on subjeect %s, received request %+v", m.Subject, string(m.Data))
+	slog.Debug(fmt.Sprintf("on subject %s, received request %+v", m.Subject, string(m.Data)))
 	ctx = graphql.StartOperationTrace(ctx)
 
 	start := time.Now()
@@ -154,7 +154,7 @@ func (n *NATSClient) HandleAndLogRequests(m *nats.Msg) {
 		)
 		resp := n.Exec.DispatchError(ctx, gqlerror.List{gqlErr})
 		if err := m.RespondMsg(natsResponse(resp)); err != nil {
-			logr.Errorf("error sending message: %s", err)
+			slog.Error(fmt.Sprintf("error sending message: %s", err))
 		}
 		return
 	}

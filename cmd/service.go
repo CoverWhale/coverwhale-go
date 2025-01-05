@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/CoverWhale/coverwhale-go/cmd/tpl"
+	"github.com/SencilloDev/sencillo-go/cmd/tpl"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,7 +32,7 @@ import (
 var serviceCmd = &cobra.Command{
 	Use:   "service",
 	Short: "Creates a new service",
-	Long:  `Creates a new Cover Whale microservice from a template`,
+	Long:  `Creates a new Sencillo microservice from a template`,
 	RunE:  service,
 }
 

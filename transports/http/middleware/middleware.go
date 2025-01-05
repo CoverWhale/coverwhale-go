@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,20 +16,21 @@ package middleware
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/CoverWhale/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/segmentio/ksuid"
 )
 
 func Logging(h http.Handler) http.Handler {
-	logger := logr.NewLogger()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		defer func() {
-			logger.Infof("path: %v host: %v duration: %dms", r.URL, r.Host, time.Since(start).Milliseconds())
+			logger.Info("path", r.URL.String(), "host", r.Host, fmt.Sprintf("request duration: %dms", time.Since(start).Milliseconds()))
 		}()
 
 		h.ServeHTTP(w, r)

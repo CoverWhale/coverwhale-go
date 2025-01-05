@@ -1,4 +1,4 @@
-module github.com/CoverWhale/coverwhale-go
+module github.com/SencilloDev/sencillo-go
 
 go 1.22.2
 

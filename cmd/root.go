@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
 package cmd
 
 import (
+	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
-	"github.com/CoverWhale/logr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -84,10 +85,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(replacer)
 
-	logger := logr.NewLogger()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	if err := viper.ReadInConfig(); err == nil {
-		logger.Debugf("using config %s", viper.ConfigFileUsed())
+		logger.Debug(fmt.Sprintf("using config %s", viper.ConfigFileUsed()))
 	}
 
 	if err := viper.Unmarshal(&cfg); err != nil {

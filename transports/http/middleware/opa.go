@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 
-	"github.com/CoverWhale/coverwhale-go/opa"
-	"github.com/CoverWhale/logr"
+	"github.com/SencilloDev/sencillo-go/opa"
 )
 
 type Query struct {
@@ -47,7 +47,7 @@ func StandardValidator(h http.Handler) http.Handler {
 
 		buf, err := io.ReadAll(r.Body)
 		if err != nil {
-			logr.Errorf("error reading request body: %v", err)
+			slog.Error(fmt.Sprintf("error reading request body: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -81,7 +81,7 @@ func CustomValidator(h http.Handler, customValidator ValidationFunc, url opa.OPA
 
 		buf, err := io.ReadAll(r.Body)
 		if err != nil {
-			logr.Errorf("error reading request body: %v", err)
+			slog.Error(fmt.Sprintf("error reading request body: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -92,14 +92,14 @@ func CustomValidator(h http.Handler, customValidator ValidationFunc, url opa.OPA
 
 		opaRequest, err := customValidator(buf)
 		if err != nil {
-			logr.Errorf("error from custom validation func: %v", err)
+			slog.Error(fmt.Sprintf("error from custom validation func: %v", err))
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		requestData, err := json.Marshal(opaRequest)
 		if err != nil {
-			logr.Errorf("error marshaling input data: %v", err)
+			slog.Error(fmt.Sprintf("error marshaling input data: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -126,7 +126,7 @@ func GraphQLCustomValidator(handler http.Handler, customValidator ValidationFunc
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		buf, err := io.ReadAll(r.Body)
 		if err != nil {
-			logr.Errorf("error reading request body: %v", err)
+			slog.Error(fmt.Sprintf("error reading request body: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -145,7 +145,7 @@ func GraphQLCustomValidator(handler http.Handler, customValidator ValidationFunc
 		var q Query
 
 		if err := json.Unmarshal(data, &q); err != nil {
-			logr.Errorf("error unmarshaling query data: %v", err)
+			slog.Error(fmt.Sprintf("error unmarshaling query data: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -164,14 +164,14 @@ func GraphQLCustomValidator(handler http.Handler, customValidator ValidationFunc
 
 		opaRequest, err := customValidator(opaData)
 		if err != nil {
-			logr.Errorf("error from custom validation func: %v", err)
+			slog.Error(fmt.Sprintf("error from custom validation func: %v", err))
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		requestData, err := json.Marshal(opaRequest)
 		if err != nil {
-			logr.Errorf("error marshaling input data: %v", err)
+			slog.Error(fmt.Sprintf("error marshaling input data: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -194,14 +194,14 @@ func validate(w http.ResponseWriter, r io.Reader, url string) bool {
 
 	data, err := io.ReadAll(r)
 	if err != nil {
-		logr.Errorf("error decoding OPA request data: %v", err)
+		slog.Error(fmt.Sprintf("error decoding OPA request data: %v", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return false
 	}
 
 	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
-		logr.Errorf("error building OPA request: %v", err)
+		slog.Error(fmt.Sprintf("error building OPA request: %v", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return false
 	}
@@ -212,7 +212,7 @@ func validate(w http.ResponseWriter, r io.Reader, url string) bool {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&or); err != nil {
-		logr.Errorf("error decoding response from OPA: %v", err)
+		slog.Error(fmt.Sprintf("error decoding response from OPA: %v", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return false
 	}
@@ -220,7 +220,7 @@ func validate(w http.ResponseWriter, r io.Reader, url string) bool {
 	if !or.Result.Allow {
 		w.WriteHeader(http.StatusUnauthorized)
 		if err := json.NewEncoder(w).Encode(or.Result); err != nil {
-			logr.Errorf("error encoding OPA unauthorized response: %v", err)
+			slog.Error(fmt.Sprintf("error encoding OPA unauthorized response: %v", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return false
 		}

@@ -1,4 +1,4 @@
-// Copyright 2023 Cover Whale Insurance Solutions Inc.
+// Copyright 2025 Sencillo
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,11 +25,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/CoverWhale/coverwhale-go/metrics"
-	cwmiddleware "github.com/CoverWhale/coverwhale-go/transports/http/middleware"
-	"github.com/CoverWhale/logr"
+	"github.com/SencilloDev/sencillo-go/metrics"
+	cwmiddleware "github.com/SencilloDev/sencillo-go/transports/http/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sagikazarmark/slog-shim"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
@@ -47,13 +47,13 @@ type MiddlewareWithLogger func(*Server, http.Handler) http.Handler
 // errHandler contains a handler that returns an error and a logger
 type ErrHandler struct {
 	Handler handlerWithError
-	Logger  *logr.Logger
+	Logger  *slog.Logger
 }
 
 // Server holds the http.Server, a logger, and the router to attach to the http.Server
 type Server struct {
 	apiServer      *http.Server
-	Logger         *logr.Logger
+	Logger         *slog.Logger
 	Router         *http.ServeMux
 	Exporter       *metrics.Exporter
 	traceShutdown  func(context.Context) error
@@ -83,7 +83,7 @@ func NewHTTPServer(opts ...ServerOption) *Server {
 	r := http.NewServeMux()
 
 	s := &Server{
-		Logger:   logr.NewLogger(),
+		Logger:   slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		Router:   r,
 		Exporter: metrics.NewExporter(),
 		apiServer: &http.Server{
@@ -168,7 +168,7 @@ func (e *ErrHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	e.Logger.Errorf("status=%d, err=%v", http.StatusInternalServerError, err)
+	e.Logger.Error(fmt.Sprintf("status=%d, err=%v", http.StatusInternalServerError, err))
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Write([]byte(ErrInternalError.Error()))
 }
@@ -218,7 +218,7 @@ func (s *Server) RegisterSubRouter(prefix string, routes []Route, middleware ...
 func (s *Server) Serve(errChan chan<- error) {
 	prometheus.MustRegister(s.Exporter.Metrics...)
 
-	s.Logger.Infof("starting HTTP server on %s", s.apiServer.Addr)
+	s.Logger.Info(fmt.Sprintf("starting HTTP server on %s", s.apiServer.Addr))
 	if err := s.apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		errChan <- err
 	}
@@ -232,7 +232,7 @@ func (s *Server) AutoHandleErrors(ctx context.Context, errChan <-chan error) {
 	go func() {
 		serverErr := <-errChan
 		if serverErr != nil {
-			s.Logger.Errorf("error starting server: %v", serverErr)
+			s.Logger.Error(fmt.Sprintf("error starting server: %v", serverErr))
 			s.ShutdownServer(ctx)
 		}
 	}()
@@ -241,7 +241,7 @@ func (s *Server) AutoHandleErrors(ctx context.Context, errChan <-chan error) {
 	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-sigTerm
-	s.Logger.Infof("received signal: %s", sig)
+	s.Logger.Info(fmt.Sprintf("received signal: %s", sig))
 	s.ShutdownServer(ctx)
 }
 
@@ -252,12 +252,12 @@ func (s *Server) ShutdownServer(ctx context.Context) {
 
 	if s.TracerProvider != nil {
 		if err := s.TracerProvider.Shutdown(ctx); err != nil {
-			s.Logger.Errorf("error stopping tracing: %v\n", err)
+			s.Logger.Error(fmt.Sprintf("error stopping tracing: %v\n", err))
 		}
 	}
 
 	if err := s.apiServer.Shutdown(ctx); err != nil {
-		s.Logger.Errorf("error shutting down server: %v\n", err)
+		s.Logger.Error(fmt.Sprintf("error shutting down server: %v\n", err))
 	}
 
 	s.Logger.Info("server stopped")

@@ -1,7 +1,22 @@
+// Copyright 2025 Sencillo
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package nats
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,14 +25,13 @@ import (
 	"syscall"
 	"time"
 
-	cwerrors "github.com/CoverWhale/coverwhale-go/errors"
-	"github.com/CoverWhale/logr"
+	cwerrors "github.com/SencilloDev/sencillo-go/errors"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 	"github.com/segmentio/ksuid"
 )
 
-type HandlerWithErrors func(*logr.Logger, micro.Request) error
+type HandlerWithErrors func(*slog.Logger, micro.Request) error
 
 type ClientError interface {
 	Error() string
@@ -34,7 +48,7 @@ func HandleNotify(s micro.Service, healthFuncs ...func(chan<- string, micro.Serv
 
 	go handleNotify(stopChan)
 
-	logr.Info(<-stopChan)
+	slog.Info(<-stopChan)
 	return s.Stop()
 }
 
@@ -48,7 +62,7 @@ func handleNotify(stopChan chan<- string) {
 
 // ErrorHandler wraps a normal micro endpoint and allows for returning errors natively. Errors are
 // checked and if an error is a client error, details are returned, otherwise a 500 is returned and logged
-func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
+func ErrorHandler(logger *slog.Logger, h HandlerWithErrors) micro.HandlerFunc {
 	return func(r micro.Request) {
 		start := time.Now()
 		id, err := SubjectToRequestID(r.Subject())
@@ -56,9 +70,9 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 			handleRequestError(logger, cwerrors.NewClientError(err, 400), r)
 			return
 		}
-		reqLogger := logger.WithContext(map[string]string{"request_id": id, "path": r.Subject()})
+		reqLogger := logger.With("request_id", id, "path", r.Subject())
 		defer func() {
-			reqLogger.Infof("duration %dms", time.Since(start).Milliseconds())
+			reqLogger.Info(fmt.Sprintf("duration %dms", time.Since(start).Milliseconds()))
 		}()
 
 		if err := buildQueryHeaders(r); err != nil {
@@ -84,7 +98,7 @@ func buildQueryHeaders(r micro.Request) error {
 	}
 
 	for k, v := range parsed {
-		key := fmt.Sprintf("X-CW-%s", k)
+		key := fmt.Sprintf("X-Sencillo-%s", k)
 		headers[key] = v
 	}
 
@@ -96,14 +110,14 @@ func GetQueryHeaders(headers micro.Headers, key string) []string {
 	return headers.Values(k)
 }
 
-func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
+func handleRequestError(logger *slog.Logger, err error, r micro.Request) {
 	ce, ok := err.(ClientError)
 	if ok {
 		logger.Error(ce.LoggedError())
 		r.Error(fmt.Sprintf("%d", ce.Code()), http.StatusText(ce.Code()), ce.Body())
 	}
 
-	logger.Error(err)
+	logger.Error(err.Error())
 
 	r.Error("500", "internal server error", []byte(`{"error": "internal server error"}`))
 }
@@ -124,10 +138,10 @@ func SubjectToRequestID(s string) (string, error) {
 	return id, nil
 }
 
-func RequestLogger(l *logr.Logger, subject string) (*logr.Logger, error) {
+func RequestLogger(l *slog.Logger, subject string) (*slog.Logger, error) {
 	id, err := SubjectToRequestID(subject)
 	if err != nil {
 		return nil, err
 	}
-	return l.WithContext(map[string]string{"request_id": id}), nil
+	return l.With("request_id", id), nil
 }
