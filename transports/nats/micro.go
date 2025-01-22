@@ -19,6 +19,7 @@ import (
 
 type HandlerWithErrors func(*logr.Logger, micro.Request) error
 
+// Interface of a type of client error, not necessarily the cwerrors.ClientError type
 type ClientError interface {
 	Error() string
 	Code() int
@@ -103,9 +104,9 @@ func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 		r.Error(fmt.Sprintf("%d", ce.Code()), http.StatusText(ce.Code()), ce.Body())
 	}
 
-	logger.Error(err)
+	logger.Error(ce.LoggedError())
 
-	r.Error("500", "internal server error", []byte(`{"error": "internal server error"}`))
+	r.Error("500", "internal server error", []byte(`{"errors": ["internal server error"]}`))
 }
 
 func SubjectToRequestID(s string) (string, error) {
