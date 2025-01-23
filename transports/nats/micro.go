@@ -104,7 +104,7 @@ func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 		r.Error(fmt.Sprintf("%d", ce.Code()), http.StatusText(ce.Code()), ce.Body())
 	}
 
-	logger.Error(ce.LoggedError())
+	logger.Error(err.Error())
 
 	r.Error("500", "internal server error", []byte(`{"errors": ["internal server error"]}`))
 }

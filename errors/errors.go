@@ -36,7 +36,7 @@ func (c ClientError) Error() string {
 func (c ClientError) Body() []byte {
 	format := `{"code": %q, "message": %q, "type": %q, "level": %q}`
 	if c.ErrorsWithMetadata != nil {
-		return []byte(fmt.Sprintf(`{"errors": [%s]}`, errorMetadataToJSONString(format, c.ErrorsWithMetadata...)))
+		return []byte(fmt.Sprintf(`{"errors": [%s]}`, errorMetadataToFormattedString(format, c.ErrorsWithMetadata...)))
 	}
 
 	return []byte(fmt.Sprintf(`{"errors": [%q]}`, c.Details))
@@ -49,13 +49,13 @@ func (c ClientError) Code() int {
 func (c ClientError) LoggedError() string {
 	format := `{code: %s, message: %s, type: %s, level: %s}`
 	if c.ErrorsWithMetadata != nil {
-		return errorMetadataToJSONString(format, c.ErrorsWithMetadata...)
+		return errorMetadataToFormattedString(format, c.ErrorsWithMetadata...)
 	}
 
 	return c.DetailedError.Error()
 }
 
-func errorMetadataToJSONString(format string, objects ...ErrorWithMetadata) string {
+func errorMetadataToFormattedString(format string, objects ...ErrorWithMetadata) string {
 	var errors []string
 	for _, v := range objects {
 		errors = append(errors, fmt.Sprintf(format, v.Code, v.Message, v.Type, v.Level))
