@@ -70,7 +70,7 @@ func (c ClientError) As(target any) bool {
 }
 
 func (c ClientError) WithMetadataErrors(objects ...ErrorWithMetadata) ClientError {
-	c.ErrorsWithMetadata = append(c.ErrorsWithMetadata, objects...)
+	c.ErrorsWithMetadata = objects
 
 	return c
 }
@@ -82,10 +82,17 @@ func WithDetailedError(err error) ClientErrorOpt {
 }
 
 func NewClientError(err error, code int, opts ...ClientErrorOpt) ClientError {
+	metadata := ErrorWithMetadata{
+		Code:    "CWGEN100",
+		Message: err.Error(),
+		Type:    "api",
+		Level:   "warning",
+	}
 	ce := ClientError{
-		Status:        code,
-		Details:       err.Error(),
-		DetailedError: err,
+		Status:             code,
+		Details:            err.Error(),
+		ErrorsWithMetadata: []ErrorWithMetadata{metadata},
+		DetailedError:      err,
 	}
 
 	for _, v := range opts {
