@@ -97,6 +97,7 @@ func GetQueryHeaders(headers micro.Headers, key string) []string {
 	return headers.Values(k)
 }
 
+// handleRequestError will return a client error if it is a client error, otherwise it will return a 500
 func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 	ce, ok := err.(ClientError)
 	if ok {

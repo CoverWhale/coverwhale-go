@@ -21,10 +21,17 @@ type ClientError struct {
 }
 
 type ErrorWithMetadata struct {
-	Code    string `json:"code"`
+	// Code assigned to this type of error
+	Code string `json:"code"`
+
+	// Message is the details for the error
 	Message string `json:"message"`
-	Type    string `json:"type"`
-	Level   string `json:"level"`
+
+	// Type is the type of error
+	Type string `json:"type"`
+
+	// Level is the level of the error
+	Level string `json:"level"`
 }
 
 type ClientErrorOpt func(*ClientError)
@@ -33,6 +40,7 @@ func (c ClientError) Error() string {
 	return c.Details
 }
 
+// Body formats the error as JSON to return to the client.
 func (c ClientError) Body() []byte {
 	format := `{"code": %q, "message": %q, "type": %q, "level": %q}`
 	if c.ErrorsWithMetadata != nil {
@@ -46,15 +54,17 @@ func (c ClientError) Code() int {
 	return c.Status
 }
 
+// LoggedError is to be logged when returning a client error
 func (c ClientError) LoggedError() string {
 	format := `{code: %s, message: %s, type: %s, level: %s}`
 	if c.ErrorsWithMetadata != nil {
-		return errorMetadataToFormattedString(format, c.ErrorsWithMetadata...)
+		return fmt.Sprintf("%s %s", c.Details, errorMetadataToFormattedString(format, c.ErrorsWithMetadata...))
 	}
 
-	return c.DetailedError.Error()
+	return fmt.Sprintf("%s %s", c.Details, c.DetailedError.Error())
 }
 
+// errorMetadataToFormattedString takes a format string and a slice of ErrorWithMetadata objects and returns a formatted string
 func errorMetadataToFormattedString(format string, objects ...ErrorWithMetadata) string {
 	var errors []string
 	for _, v := range objects {
@@ -69,6 +79,7 @@ func (c ClientError) As(target any) bool {
 	return ok
 }
 
+// WithMetadataErrors is a variadic function that takes Errors With Metadata for returning error objects to clients
 func (c ClientError) WithMetadataErrors(objects ...ErrorWithMetadata) ClientError {
 	c.ErrorsWithMetadata = objects
 
@@ -81,9 +92,10 @@ func WithDetailedError(err error) ClientErrorOpt {
 	}
 }
 
+// NewClientError returns a new client error. If no metadata errors are given, default error metadata is returned
 func NewClientError(err error, code int, opts ...ClientErrorOpt) ClientError {
 	metadata := ErrorWithMetadata{
-		Code:    "CWGEN100",
+		Code:    "CWGEN1",
 		Message: err.Error(),
 		Type:    "api",
 		Level:   "warning",
