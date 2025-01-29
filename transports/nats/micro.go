@@ -107,7 +107,7 @@ func handleRequestError(logger *logr.Logger, err error, r micro.Request) {
 
 	logger.Error(err.Error())
 
-	r.Error("500", "internal server error", []byte(`{"errors": ["internal server error"]}`))
+	r.Error("500", "internal server error", []byte(`{"errors": [{"code": "CWINT1", "message": "internal server error", "type": "server", "level": "warning"}]}`))
 }
 
 func SubjectToRequestID(s string) (string, error) {
