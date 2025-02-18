@@ -529,7 +529,7 @@ import (
 )
 
 func newNatsConnection(name string) (*nats.Conn, error) {
-        opts := []nats.Option{nats.Name(name)}
+	opts := []nats.Option{nats.Name(name), nats.MaxReconnects(-1)}
 
         _, ok := os.LookupEnv("USER")
 
