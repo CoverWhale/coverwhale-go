@@ -66,6 +66,10 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 			handleRequestError(reqLogger, err, r)
 		}
 
+		if r.Headers().Get("X-Request-ID") == "" && len(r.Headers()) != 0 {
+			r.Headers()["X-Request-ID"] = []string{id}
+		}
+
 		err = h(reqLogger, r)
 		if err == nil {
 			return
