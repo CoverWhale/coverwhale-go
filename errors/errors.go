@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -18,6 +19,9 @@ type ClientError struct {
 
 	//DetailedError is the actual error to be logged
 	DetailedError error
+
+	// Additional parameters for the error
+	Params map[string]any
 }
 
 type ErrorWithMetadata struct {
@@ -43,11 +47,19 @@ func (c ClientError) Error() string {
 // Body formats the error as JSON to return to the client.
 func (c ClientError) Body() []byte {
 	format := `{"code": %q, "message": %q, "type": %q, "level": %q}`
+	var baseJSON string
 	if c.ErrorsWithMetadata != nil {
-		return []byte(fmt.Sprintf(`{"errors": [%s]}`, errorMetadataToFormattedString(format, c.ErrorsWithMetadata...)))
+		baseJSON = fmt.Sprintf(`{"errors": [%s]`, errorMetadataToFormattedString(format, c.ErrorsWithMetadata...))
+	} else {
+		baseJSON = fmt.Sprintf(`{"errors": [%q]`, c.Details)
 	}
 
-	return []byte(fmt.Sprintf(`{"errors": [%q]}`, c.Details))
+	if len(c.Params) > 0 {
+		paramsJSON, _ := json.Marshal(c.Params)
+		baseJSON = fmt.Sprintf("%s, \"params\": %s", baseJSON, string(paramsJSON))
+	}
+
+	return []byte(baseJSON + "}")
 }
 
 func (c ClientError) Code() int {
@@ -89,6 +101,15 @@ func (c ClientError) WithMetadataErrors(objects ...ErrorWithMetadata) ClientErro
 func WithDetailedError(err error) ClientErrorOpt {
 	return func(c *ClientError) {
 		c.DetailedError = err
+	}
+}
+
+func WithAdditionalParams(params map[string]any) ClientErrorOpt {
+	return func(c *ClientError) {
+		if len(params) == 0 {
+			return
+		}
+		c.Params = params
 	}
 }
 
