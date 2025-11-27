@@ -62,6 +62,11 @@ func ErrorHandler(logger *logr.Logger, h HandlerWithErrors) micro.HandlerFunc {
 			reqLogger.Infof("duration %dms", time.Since(start).Milliseconds())
 		}()
 
+		correlationId := r.Headers().Get("X-Correlation-Id")
+		if correlationId != "" {
+			reqLogger = reqLogger.WithContext(map[string]string{"correlation_id": correlationId})
+		}
+
 		if err := buildQueryHeaders(r); err != nil {
 			handleRequestError(reqLogger, err, r)
 		}
