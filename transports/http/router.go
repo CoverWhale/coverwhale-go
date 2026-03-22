@@ -151,6 +151,7 @@ func SetIdleTimeout(t int) ServerOption {
 func SetTracerProvider(t *trace.TracerProvider) ServerOption {
 	return func(s *Server) {
 		s.TracerProvider = t
+		s.traceShutdown = t.Shutdown
 	}
 }
 
