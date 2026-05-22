@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for new-from-merge-base diff filtering
 
       - uses: actions/setup-go@v5
         with:
@@ -21,8 +23,8 @@ jobs:
           git diff --exit-code -- go.mod go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.5.0
           skip-cache: true
           args: -v
