@@ -1,0 +1,224 @@
+# golangci-lint configuration file
+#
+# This configuration includes an initial set of recommended linters for Go projects.
+# Bear in mind these linters are suggestions and can be updated, added, or removed based on our
+# project's specific needs, coding standards, and our team preferences.
+#
+# To customize this configuration:
+# - Add/remove linters from the 'enable' section
+# - Adjust linter-specific settings in 'settings'
+# - Modify exclusion rules in 'exclusions' section
+#
+# For a complete list of available linters and their configurations, see:
+# https://golangci-lint.run/docs/linters/
+#
+# Reference: https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
+#
+# RECOMMENDATION: Let's consider adopting this linting strategy company-wide for all Go repositories.
+# Benefits of standardized linting across the organization:
+# - Consistent code quality and style across all Golang projects
+# - Easier code reviews and onboarding for engineers moving between projects
+# - Early detection of bugs, security issues, and performance problems
+# - Reduced technical debt through automated enforcement of best practices
+# - Improved maintainability and collaboration across teams
+#
+# To implement company-wide:
+# 1. Use this config as template
+# 2. Integrate into CI/CD pipelines for all Go projects
+# 3. Establish a process for updating the shared configuration as standards evolve
+
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Default linters
+    - errcheck      # Checks for unchecked errors in code
+    - govet         # Reports suspicious constructs and common programming errors
+    - ineffassign   # Detects when assignments to variables are never used
+    - staticcheck   # Applies a ton of static analysis checks
+    - unused        # Reports unused constants, variables, functions and types
+
+    # Some other linters
+    - unparam       # Reports unused function parameters
+    - gocyclo       # Checks function complexity (cyclomatic complexity)
+    - gocognit      # Measures and checks cognitive complexity of functions
+    - goprintffuncname # Checks if printf-like functions are named correctly
+    - nilerr        # Finds code that returns nil when err is not nil
+    - nilnil        # Checks against returning both nil value and nil error
+    - bodyclose     # Ensures HTTP response bodies are closed properly
+    - unconvert     # Removes unnecessary type conversions
+    - whitespace    # Reports inconsistent whitespace usage
+    - errorlint     # Checks for error handling issues
+    - gosec         # Security-focused linter checking for vulnerabilities
+    - goconst       # Finds repeated strings that could be replaced with constants
+    - nestif        # Reports deeply nested if statements
+    - perfsprint    # Checks for inefficient string formatting operations
+    - copyloopvar   # Detects problematic copying of loop variables in closures
+
+    - revive        # Configurable linter with extensive rule set
+    - dupl          # Detects code clones/duplicated code blocks
+    - gocritic      # Collection of various diagnostic, style, and performance checks
+    - paralleltest  # Detects missing t.Parallel() calls in tests
+    - prealloc      # Finds slice declarations that could pre-allocate for performance
+
+  settings:
+    gocyclo:
+      # Minimal code complexity to report.
+      # Default: 30 (but we recommend 10-20)
+      min-complexity: 15
+    gocognit:
+      # Minimal code complexity to report.
+      # Default: 30 (but we recommend 10-20)
+      min-complexity: 15
+    nestif:
+      # Minimal complexity of if statements to report.
+      min-complexity: 5
+    dupl:
+      # Tokens count to trigger issue.
+      # Default: 150
+      threshold: 150
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - hugeParam
+        - sloppyReassign
+        - rangeValCopy
+    revive:
+      enable-all-rules: false
+      rules:
+        # The following rule ('exported') is temporarily disabled to reduce noise and focus on more critical issues first (bugs, security, performance).
+        # Note: The 'exported' returned over 1000+ findings, however it's one of the most widely adopted linting rules across Go projects.
+        # It checks that all exported identifiers (functions, types, variables, constants with capital letters) have proper documentation comments.
+        #
+        # 'exported' Prevalence:
+        # - Included in standard Go lint configurations of many major organizations
+        # - Common in high-profile open-source projects (Kubernetes, Docker, etc.)
+        # - Part of Google's internal Go style guide
+        #
+        # 'exported' Benefits:
+        # - Documentation quality: Enforces proper API documentation, essential when publishing a library/package or exposing APIs to external clients
+        # - Readability: Makes code more accessible to new team members
+        # - Godoc generation: Enables automatic generation of high-quality documentation
+        # - Maintainability: Future maintainers understand purpose and usage of exported items
+        # - Standards compliance: Follows Go's official documentation recommendations
+        #
+        # Note: For mature projects, initial implementation cost can be high, but long-term documentation
+        # benefits are substantial. Many teams apply it gradually or to new code only.
+
+        # TODO: With all that said, enabling the 'exported' check requires discussion and once higher-priority issues are addressed.
+        # For the translator service, this is beneficial given plans to expose the project as an API consumed by multiple clients.
+        # Better long-term strategies:
+        # - Enable incrementally as codebase improves
+        # - Address during refactoring cycles
+        # - Use as part of code review guidelines rather than CI blockers
+        # - Gradual adoption by using 'new: true', 'new-from-merge-base' or 'new-from-rev' in the 'issues' section
+
+        # - name: exported
+        - name: var-naming
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    staticcheck:
+      # Disable 'Invalid struct tag' checks since our project uses custom struct tags for weakly-typed conversions that staticcheck doesn't recognize
+      checks: [ "all", "-SA5008", "-ST1000" ]
+
+  exclusions:
+    rules:
+      # Exclude some linters from running on tests files.
+      # This can reduce noise in the linting process, as test files often have different priorities and patterns compared to production code.
+      # This configuration is useful for focusing linting efforts on production code while allowing more flexibility in test files, which may not always adhere to the same standards.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - gocognit
+          - errcheck
+          - dupl
+          - gosec
+
+    # Which file paths to exclude: they will be analyzed, but issues from them won't be reported.
+    # "/" will be replaced by the current OS file path separator to properly work on Windows.
+    # Default: []
+    paths:
+      - vendor
+      - generated
+
+formatters:
+  enable:
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # New issue filtering options below - 'new', 'new-from-merge-base', 'and new-from-rev' (mutually exclusive - only one should be enabled).
+  # Note: To enable the settings below, the 'full-history' flag must be set to true in the .github/workflows/build.yaml file.
+  # In addition, the git repository (including history) must be inside the container for these options to work during CI/CD.
+  # This ensures the workflow fetches the complete Git history required for diff-based linting.
+  # Recommendation: For CI/CD workflows, golangci-lint should run directly on the host/runner where the full Git repository is already available,
+  # rather than inside a Docker container. This is faster and avoids the complexity of managing Git history in containers.
+  # However, this is how the DevOps setup is currently configured.
+  #
+  # Show only new issues: if there are unstaged changes or untracked files,
+  # only those changes are analyzed, else only changes in HEAD~ are analyzed.
+  # It's a super-useful option for integration of golangci-lint into existing large codebase.
+  # It's not practical to fix all existing issues at the moment of integration:
+  # much better don't allow issues in new code.
+  #
+  # Default: false
+  # new: true
+  #   - Checks only recent local changes (unstaged/untracked files, or last commit if working dir is clean)
+  #   - Best for: Individual developer workflow, catching issues before committing
+  #   - Scope: Single commit or working directory changes
+
+  # Show only new issues created after the best common ancestor (merge-base against HEAD).
+  # Default: ""
+  new-from-merge-base: origin/main
+  #   - Checks all changes since branching from 'main' (entire branch history)
+  #   - Best for: PR reviews, ensuring branch doesn't introduce new issues
+  #   - Scope: All commits since diverging from target branch. Not the whole codebase.
+
+  # Show only new issues created after git revision `REV`.
+  # Default: ""
+  # new-from-rev: HEAD
+  #   - Checks changes since a specific git revision/commit
+  #   - Best for: Custom comparison points, specific commit ranges
+  #   - Scope: Changes since specified revision
+  #
+  # Recommendation: Use 'new-from-merge-base: main' for CI/CD and PR workflows
+
+output:
+  formats:
+    tab:
+      path: stdout
+
+# Options for analysis running.
+run:
+  # Timeout for total work, e.g. 30s, 5m, 5m30s.
+  # If the value is lower or equal to 0, the timeout is disabled.
+  # Default: 0 (disabled)
+  timeout: 2m
+
+
